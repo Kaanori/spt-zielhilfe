@@ -166,7 +166,7 @@ namespace Zielhilfe
 			{
 				return;
 			}
-			_faden = new Thread(Schreiben) { IsBackground = true, Name = "Zielhilfe-Aufzeichnung" };
+			_faden = new Thread(Schreiben) { IsBackground = true, Name = "Zielhilfe-Recordings" };
 			_faden.Start();
 		}
 
@@ -207,7 +207,7 @@ namespace Zielhilfe
 				}
 				catch (Exception ex)
 				{
-					Protokoll?.LogWarning("[Zielhilfe] Aufzeichnung schreiben: " + ex.Message);
+					Protokoll?.LogWarning("[Zielhilfe] Recording write: " + ex.Message);
 				}
 			}
 		}
@@ -493,7 +493,7 @@ namespace Zielhilfe
 			{
 				_voll = true;
 				GefechtBeenden();
-				Protokoll?.LogWarning($"[Zielhilfe] Aufzeichnung: Grenze {Einstellungen.AufzMaxMB.Value} MB fuer diesen Raid erreicht, keine weiteren Gefechte.");
+				Protokoll?.LogWarning($"[Zielhilfe] Recording: limit of {Einstellungen.AufzMaxMB.Value} MB for this raid reached, no further fights.");
 			}
 
 			if (!_gefecht && aktiv && !_voll)
@@ -534,8 +534,8 @@ namespace Zielhilfe
 			_gegner.Clear();
 			Interlocked.Exchange(ref _dateiBytesFertig, 0);
 			Interlocked.Exchange(ref _dateiBytesOffen, 0);
-			string karte = Sauber(Spielzugriff.Welt?.LocationId ?? "unbekannt");
-			string wurzel = Path.Combine(BepInEx.Paths.BepInExRootPath, "Zielhilfe-Aufzeichnung");
+			string karte = Sauber(Spielzugriff.Welt?.LocationId ?? "unknown");
+			string wurzel = Path.Combine(BepInEx.Paths.BepInExRootPath, "Zielhilfe-Recordings");
 			_raidOrdner = Path.Combine(wurzel, DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + karte);
 			// Aelteste Ordner entfernen, so dass mit diesem hoechstens N bleiben.
 			Einreihen(new Auftrag { Art = 3, Pfad = wurzel, Laenge = Math.Max(0, Einstellungen.AufzMaxRaids.Value - 1) });
@@ -562,7 +562,7 @@ namespace Zielhilfe
 		private static void GefechtBeginnen(Player ich, float jetzt)
 		{
 			_gefechtNr++;
-			string pfad = Path.Combine(_raidOrdner, $"gefecht-{_gefechtNr:000}-{DateTime.Now:HHmmss}.jsonl.gz");
+			string pfad = Path.Combine(_raidOrdner, $"fight-{_gefechtNr:000}-{DateTime.Now:HHmmss}.jsonl.gz");
 			Einreihen(new Auftrag { Art = 0, Pfad = pfad });
 			_gefecht = true;
 			// Kopfzeile.
@@ -1250,7 +1250,7 @@ namespace Zielhilfe
 			catch (Exception ex)
 			{
 				_sainTyp = null;
-				Protokoll?.LogInfo("[Zielhilfe] Aufzeichnung: SAIN nicht lesbar (" + ex.Message + ")");
+				Protokoll?.LogInfo("[Zielhilfe] Recording: SAIN not readable (" + ex.Message + ")");
 			}
 		}
 
@@ -1325,11 +1325,11 @@ namespace Zielhilfe
 		{
 			if (!Einstellungen.KampfAufzeichnung.Value)
 			{
-				return " | Aufzeichnung aus";
+				return " | recording off";
 			}
 			long bytes = Interlocked.Read(ref _dateiBytesFertig) + Interlocked.Read(ref _dateiBytesOffen);
-			return $" | Aufzeichnung {(_gefecht ? $"GEFECHT {_gefechtNr}" : "bereit")}{(_voll ? " (voll)" : "")}, {_msGlatt:0.000} ms/Bild, "
-				+ $"{bytes / 1000000.0:0.0} MB gepackt / {_rohBytes / 1000000.0:0.0} MB roh" + ((_verloren > 0) ? $", {_verloren} Bloecke verloren" : "");
+			return $" | recording {(_gefecht ? $"FIGHT {_gefechtNr}" : "ready")}{(_voll ? " (full)" : "")}, {_msGlatt:0.000} ms/frame, "
+				+ $"{bytes / 1000000.0:0.0} MB packed / {_rohBytes / 1000000.0:0.0} MB raw" + ((_verloren > 0) ? $", {_verloren} blocks lost" : "");
 		}
 
 		public static void FehlerMelden(Exception ex)
@@ -1337,7 +1337,7 @@ namespace Zielhilfe
 			if (!_fehlerGemeldet)
 			{
 				_fehlerGemeldet = true;
-				Protokoll?.LogWarning("[Zielhilfe] Aufzeichnung: " + ex);
+				Protokoll?.LogWarning("[Zielhilfe] Recording: " + ex);
 			}
 		}
 

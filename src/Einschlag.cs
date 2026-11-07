@@ -240,20 +240,20 @@ namespace Zielhilfe
 			Akte a = Finden(nr);
 			if (a == null)
 			{
-				return FormattableString.Invariant($" | schuss={nr}");
+				return FormattableString.Invariant($" | shot={nr}");
 			}
 			if (!a.HatVorhalt)
 			{
-				return FormattableString.Invariant($" | schuss={nr} | Vorhalt: nicht gerechnet (Ziel {(a.ZielName.Length > 0 ? a.ZielName : "keins")}, Quelle {a.ZielQuelle})");
+				return FormattableString.Invariant($" | shot={nr} | lead: not calculated (target {(a.ZielName.Length > 0 ? a.ZielName : "none")}, source {a.ZielQuelle})");
 			}
 			Vector2 vb = Bildebene(a.Fp, a.VorhaltBasis, a.Vorhalt);
 			Vector3 gl = a.TempoGl;
 			Vector3 roh = a.TempoRoh;
 			Vector2 glB = Bildebene(a.Fp, a.VorhaltBasis, gl) / 100f;
 			Vector2 rohB = Bildebene(a.Fp, a.VorhaltBasis, roh) / 100f;
-			return FormattableString.Invariant($" | schuss={nr} | Vorhalt quer {vb.x:+0.0;-0.0;0} cm, hoch {vb.y:+0.0;-0.0;0} cm ({a.Vorhalt.magnitude * 100f:0.0} cm), Flugzeit {a.VorhaltFlugzeit:0.000} s")
-				+ FormattableString.Invariant($" | Tempo geglaettet quer {glB.x:+0.00;-0.00;0} m/s ({new Vector3(gl.x, 0f, gl.z).magnitude:0.00}), momentan quer {rohB.x:+0.00;-0.00;0} m/s ({new Vector3(roh.x, 0f, roh.z).magnitude:0.00})")
-				+ FormattableString.Invariant($" | Fallausgleich {a.FallM * 100f:0.0} cm");
+			return FormattableString.Invariant($" | shot={nr} | lead horizontal {vb.x:+0.0;-0.0;0} cm, vertical {vb.y:+0.0;-0.0;0} cm ({a.Vorhalt.magnitude * 100f:0.0} cm), flight time {a.VorhaltFlugzeit:0.000} s")
+				+ FormattableString.Invariant($" | speed smoothed horizontal {glB.x:+0.00;-0.00;0} m/s ({new Vector3(gl.x, 0f, gl.z).magnitude:0.00}), instantaneous horizontal {rohB.x:+0.00;-0.00;0} m/s ({new Vector3(roh.x, 0f, roh.z).magnitude:0.00})")
+				+ FormattableString.Invariant($" | drop compensation {a.FallM * 100f:0.0} cm");
 		}
 
 		/// <summary>Felder fuer das schuss-Ereignis der Aufzeichnung.</summary>
@@ -392,7 +392,7 @@ namespace Zielhilfe
 				hatD = Durchgang(s, a.Fp, (bezug - a.Fp).normalized, a.EntfS, out durchgang);
 			}
 			string grund = (a.Anzahl > 0) ? "einschlag"
-				: (s.IsFlyingOutOfTime ? "verfallen" : "ohne Einschlag freigegeben");
+				: (s.IsFlyingOutOfTime ? "verfallen" : "released without impact");
 			Abschliessen(a, grund, hatD, durchgang, s.CurrentPosition);
 		}
 
@@ -413,7 +413,7 @@ namespace Zielhilfe
 				}
 				if (jetzt - a.TSchuss > Hoechstdauer)
 				{
-					Abschliessen(a, "keine Freigabe binnen 8 s", false, Vector3.zero, Vector3.zero);
+					Abschliessen(a, "no release within 8 s", false, Vector3.zero, Vector3.zero);
 					continue;
 				}
 				if (a.Ziel == null)
@@ -563,61 +563,61 @@ namespace Zielhilfe
 			if (diag)
 			{
 				_sb.Length = 0;
-				_sb.Append(FormattableString.Invariant($"[Zielhilfe] EINSCHLAG t={Time.time:0.000} schuss={a.Nr} | Punkt {p0.x:0.00},{p0.y:0.00},{p0.z:0.00} | "));
+				_sb.Append(FormattableString.Invariant($"[Zielhilfe] IMPACT t={Time.time:0.000} shot={a.Nr} | point {p0.x:0.00},{p0.y:0.00},{p0.z:0.00} | "));
 				if (hatEinschlag)
 				{
-					_sb.Append(a.Kol[0]).Append(" [").Append(a.Mat[0]).Append(", ").Append(a.Zustand[0]).Append(", Ebene ").Append(a.Ebene[0]);
+					_sb.Append(a.Kol[0]).Append(" [").Append(a.Mat[0]).Append(", ").Append(a.Zustand[0]).Append(", layer ").Append(a.Ebene[0]);
 					if (a.AblChance[0] > 0f)
 					{
-						_sb.Append(FormattableString.Invariant($", Ablenkung {a.Abl[0]:0.###} mit Chance {a.AblChance[0]:0.##}"));
+						_sb.Append(FormattableString.Invariant($", deflection {a.Abl[0]:0.###} with chance {a.AblChance[0]:0.##}"));
 					}
 					_sb.Append(']');
 					if (a.Koerper[0].Length > 0)
 					{
-						_sb.Append(" Koerper ").Append(a.Koerper[0]).Append(zielGetroffen ? " am Ziel" : " an anderem");
+						_sb.Append(" body ").Append(a.Koerper[0]).Append(zielGetroffen ? " on target" : " on other");
 					}
-					_sb.Append(FormattableString.Invariant($" | Flugzeit {a.Flug[0]:0.000} s"));
+					_sb.Append(FormattableString.Invariant($" | flight time {a.Flug[0]:0.000} s"));
 				}
 				else
 				{
-					_sb.Append("kein Einschlag (").Append(grund).Append(')');
+					_sb.Append("no impact (").Append(grund).Append(')');
 				}
 				if (hatZiel)
 				{
-					_sb.Append(FormattableString.Invariant($" | Ziel {a.ZielName} ({a.ZielQuelle}) {a.EntfS:0.0} m, "));
-					_sb.Append(zone.Length > 0 ? ("Treffer " + zone + (zielGetroffen ? "" : " (anderer)")) : "daneben");
-					_sb.Append(FormattableString.Invariant($" | Ziel-Punkt {pz.x:0.00},{pz.y:0.00},{pz.z:0.00}"));
-					_sb.Append(FormattableString.Invariant($" | Bezug {bezug} | (a) Kopf jetzt quer {ab.x:+0.0;-0.0;0} hoch {ab.y:+0.0;-0.0;0} cm"));
-					_sb.Append(FormattableString.Invariant($" | (b) Kopf beim Schuss quer {bb.x:+0.0;-0.0;0} hoch {bb.y:+0.0;-0.0;0} cm"));
-					_sb.Append(FormattableString.Invariant($" | (c) ohne Vorhalt quer {cb.x:+0.0;-0.0;0} hoch {cb.y:+0.0;-0.0;0} cm"));
-					_sb.Append(FormattableString.Invariant($" | Linie quer {lin.x:+0.0;-0.0;0} hoch {lin.y:+0.0;-0.0;0} cm, Streuung quer {streu.x:+0.0;-0.0;0} hoch {streu.y:+0.0;-0.0;0} cm"));
+					_sb.Append(FormattableString.Invariant($" | target {a.ZielName} ({a.ZielQuelle}) {a.EntfS:0.0} m, "));
+					_sb.Append(zone.Length > 0 ? ("hit " + zone + (zielGetroffen ? "" : " (other)")) : "miss");
+					_sb.Append(FormattableString.Invariant($" | target point {pz.x:0.00},{pz.y:0.00},{pz.z:0.00}"));
+					_sb.Append(FormattableString.Invariant($" | reference {bezug} | (a) head now horizontal {ab.x:+0.0;-0.0;0} vertical {ab.y:+0.0;-0.0;0} cm"));
+					_sb.Append(FormattableString.Invariant($" | (b) head at shot horizontal {bb.x:+0.0;-0.0;0} vertical {bb.y:+0.0;-0.0;0} cm"));
+					_sb.Append(FormattableString.Invariant($" | (c) without lead horizontal {cb.x:+0.0;-0.0;0} vertical {cb.y:+0.0;-0.0;0} cm"));
+					_sb.Append(FormattableString.Invariant($" | line horizontal {lin.x:+0.0;-0.0;0} vertical {lin.y:+0.0;-0.0;0} cm, spread horizontal {streu.x:+0.0;-0.0;0} vertical {streu.y:+0.0;-0.0;0} cm"));
 					Vector3 weg = (kopfRef - a.KopfS) * 100f;
-					_sb.Append(FormattableString.Invariant($" | Kopf bewegt {weg.magnitude:0.0} cm (hoch {weg.y:+0.0;-0.0;0}), Haltung {a.PoseS:0.00}->{(a.HatKopfE ? a.PoseE : a.PoseS):0.00}, Tempo {new Vector3(a.TempoS.x, 0f, a.TempoS.z).magnitude:0.00} m/s"));
+					_sb.Append(FormattableString.Invariant($" | head moved {weg.magnitude:0.0} cm (vertical {weg.y:+0.0;-0.0;0}), stance {a.PoseS:0.00}->{(a.HatKopfE ? a.PoseE : a.PoseS):0.00}, speed {new Vector3(a.TempoS.x, 0f, a.TempoS.z).magnitude:0.00} m/s"));
 					if (a.HatVorhalt)
 					{
 						Vector2 vb = Bildebene(fp, kopfRef, a.Vorhalt);
-						_sb.Append(FormattableString.Invariant($" | Vorhalt quer {vb.x:+0.0;-0.0;0} hoch {vb.y:+0.0;-0.0;0} cm, Fall {a.FallM * 100f:0.0} cm"));
+						_sb.Append(FormattableString.Invariant($" | lead horizontal {vb.x:+0.0;-0.0;0} vertical {vb.y:+0.0;-0.0;0} cm, drop {a.FallM * 100f:0.0} cm"));
 					}
 					if (hatEinschlag && a.Koerper[0].Length == 0)
 					{
-						_sb.Append(FormattableString.Invariant($" | {vorZiel:0.0} m vor dem Ziel, {abstandZiel:0.00} m vom Ziel"));
+						_sb.Append(FormattableString.Invariant($" | {vorZiel:0.0} m before the target, {abstandZiel:0.00} m from the target"));
 						if (bewuchs)
 						{
-							_sb.Append(" (DURCHLAESSIG: ").Append(a.Mat[0]).Append(')');
+							_sb.Append(" (PERMEABLE: ").Append(a.Mat[0]).Append(')');
 						}
 					}
 				}
 				else
 				{
-					_sb.Append(" | kein Ziel");
+					_sb.Append(" | no target");
 				}
 				int n = Mathf.Min(a.Anzahl, MaxFolge);
 				for (int i = 1; i < n; i++)
 				{
-					_sb.Append(FormattableString.Invariant($" | Folge {i}: {a.Kol[i]} [{a.Mat[i]}, {a.Zustand[i]}, Ebene {a.Ebene[i]}]"));
+					_sb.Append(FormattableString.Invariant($" | follow-up {i}: {a.Kol[i]} [{a.Mat[i]}, {a.Zustand[i]}, Ebene {a.Ebene[i]}]"));
 					if (a.Koerper[i].Length > 0)
 					{
-						_sb.Append(" Koerper ").Append(a.Koerper[i]).Append(a.Opfer[i] == a.ZielId ? " am Ziel" : " an anderem");
+						_sb.Append(" body ").Append(a.Koerper[i]).Append(a.Opfer[i] == a.ZielId ? " on target" : " on other");
 					}
 					_sb.Append(FormattableString.Invariant($" {a.Flug[i]:0.000} s"));
 				}
