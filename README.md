@@ -15,17 +15,17 @@ A configurable single-player aim assist for SPT 4.1.6 (BepInEx client plugin): i
 ## How this mod was made (AI disclosure)
 
 This mod was **programmed by Claude**, an AI assistant made by Anthropic.
-**Kaan was the tester.**
+**Kaan was the tester**.
 
 I had a work accident a few years ago, and since then I can't move my right hand
 precisely. It shakes. So I asked Claude for help, and this is what came out of it.
 Over time it got more and more complex and better. After 2 months I'm giving it to
 the public.
 
-Kaan has no programming background, played with the mod on SPT 4.1.6, reported
-what went wrong, and Claude fixed it. No human programmer has reviewed the code.
-It is open source so anyone can check it — if you find a bug, please open an
-[issue](https://github.com/Kaanori/spt-zielhilfe/issues).
+Kaan has no programming background, played with the mod
+on SPT 4.1.6, reported what went wrong, and Claude fixed it. No human programmer
+has reviewed the code. It is open source so anyone can check it — if you find a
+bug, please open an [issue](https://github.com/Kaanori/spt-zielhilfe/issues).
 
 ## Requirements
 
