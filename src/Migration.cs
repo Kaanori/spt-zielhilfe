@@ -67,9 +67,12 @@ namespace Zielhilfe
 		private static List<Zeile> Baue()
 		{
 			List<Zeile> l = new List<Zeile>();
-			A(l, "1 Allgemein", "1 General",
-				"Eingeschaltet", "Enabled",
-				"Taste", "Hotkey");
+			// Ab 1.3.0 wohnen die beiden Hauptschalter in "0 Quick Setup". Diese Zeilen
+			// stehen vorn, damit der erste Treffer (Fassung 1.2.0) vor dem deutschen gewinnt.
+			A(l, "1 General", "0 Quick Setup", "Enabled", "Enabled");
+			A(l, "6 ESP", "0 Quick Setup", "Enabled", "Enemy ESP");
+			A(l, "1 Allgemein", "0 Quick Setup", "Eingeschaltet", "Enabled");
+			A(l, "1 Allgemein", "1 General", "Taste", "Hotkey");
 			A(l, "1b Soft Aim per Maus", "1b Soft Aim (mouse)",
 				"Art der Hilfe", "Assist type",
 				"Wann sie hilft", "When active",

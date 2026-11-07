@@ -92,52 +92,52 @@ namespace Zielhilfe
 		public static void Anlegen(ConfigFile c)
 		{
 			const string s = "6 ESP";
-			An = c.Bind(s, "Enabled", false, D("Draws boxes, labels, distance and health bars for enemies on your screen, "
+			An = Eintrag.B(c, QuickSetup.Sektion, "Enemy ESP", false, D("Draws boxes, labels, distance and health bars for enemies on your screen, "
 				+ "also through walls. OFF by default. Single-player (offline) only - like the rest of this mod it "
-				+ "is a cheat-like feature.", 100));
-			Taste = c.Bind(s, "Toggle hotkey", KeyCode.Insert, D("Switches the ESP on and off during the raid "
-				+ "(changes \"Enabled\"). Set to None to disable the hotkey.", 99));
-			Reichweite = c.Bind(s, "Maximum distance (m)", 300f, D("Enemies farther away are not drawn.", 98,
+				+ "is a cheat-like feature. Toggle during the raid with the hotkey set in \"6 ESP\" (default Insert).", 80));
+			Taste = Eintrag.B(c, s, "Toggle hotkey", KeyCode.Insert, D("Switches the ESP on and off during the raid "
+				+ "(changes \"Enemy ESP\" in \"0 Quick Setup\"). Set to None to disable the hotkey.", 99));
+			Reichweite = Eintrag.B(c, s, "Maximum distance (m)", 300f, D("Enemies farther away are not drawn.", 98,
 				new AcceptableValueRange<float>(10f, 1500f)));
-			NurFeinde = c.Bind(s, "Hostile enemies only", true, D("On = only bots the game considers hostile to you "
+			NurFeinde = Eintrag.B(c, s, "Hostile enemies only", true, D("On = only bots the game considers hostile to you "
 				+ "(same logic as the aim assist; friendly Scavs and allies are left out). Off = every living bot.", 97));
-			NurMitHilfe = c.Bind(s, "Only while the aim assist is active", false, D("On = the ESP appears only while the "
+			NurMitHilfe = Eintrag.B(c, s, "Only while the aim assist is active", false, D("On = the ESP appears only while the "
 				+ "aim assist is active (with \"When active\" = HoldKey this means: only while you hold the hotkey).", 96));
-			DurchOptik = c.Bind(s, "Draw while aiming through a scope", false, D("Off = hidden while aiming through a magnifying "
+			DurchOptik = Eintrag.B(c, s, "Draw while aiming through a scope", false, D("Off = hidden while aiming through a magnifying "
 				+ "scope. A scope draws its picture with its own camera and field of view, so markers computed against the main "
 				+ "camera would not line up with the lens image. On = draw anyway (positions will be wrong in the lens). "
 				+ "Iron sights and red dots are not affected.", 95));
-			SichtTakt = c.Bind(s, "Visibility checks per second", 8f, D("How often the line of sight to each enemy is "
+			SichtTakt = Eintrag.B(c, s, "Visibility checks per second", 8f, D("How often the line of sight to each enemy is "
 				+ "re-checked (visible vs. occluded). Higher = more responsive colour change, more CPU. 0 = never check "
 				+ "(everything counts as visible).", 94, new AcceptableValueRange<float>(0f, 30f)));
 			bool[] standard = { true, true, true, true, true, true, true, true, true };
 			for (int i = 0; i < 9; i++)
 			{
-				Zeigen[i] = c.Bind(s, "Show: " + TypName[i], standard[i], D("Draw " + TypName[i] + " enemies.", 90 - i));
+				Zeigen[i] = Eintrag.B(c, s, "Show: " + TypName[i], standard[i], D("Draw " + TypName[i] + " enemies.", 90 - i));
 			}
 
 			const string a = "6b ESP Appearance";
-			Stil = c.Bind(a, "Draw style", EspStil.CornerBox, D("Box = full rectangle. CornerBox = only the corners. "
+			Stil = Eintrag.B(c, a, "Draw style", EspStil.CornerBox, D("Box = full rectangle. CornerBox = only the corners. "
 				+ "Marker = a small marker above the head.", 100));
-			ZeigeTyp = c.Bind(a, "Show type label", true, D("Writes the enemy type (USEC, BEAR, Scav, ...) above the box.", 99));
-			ZeigeBossName = c.Bind(a, "Show boss names", true, D("Bosses (and their guards' leaders) are labelled with their name "
+			ZeigeTyp = Eintrag.B(c, a, "Show type label", true, D("Writes the enemy type (USEC, BEAR, Scav, ...) above the box.", 99));
+			ZeigeBossName = Eintrag.B(c, a, "Show boss names", true, D("Bosses (and their guards' leaders) are labelled with their name "
 				+ "instead of the type.", 98));
-			ZeigeEntfernung = c.Bind(a, "Show distance", true, D("Writes the distance in meters below the box.", 97));
-			ZeigeLeben = c.Bind(a, "Show health bar", true, D("Vertical health bar left of the box (total health).", 96));
-			ZeigeKopf = c.Bind(a, "Show head dot", false, D("Small dot on the head.", 95));
-			ZeigeVerdeckte = c.Bind(a, "Draw occluded enemies", true, D("Off = only enemies you have a clear line of sight to "
+			ZeigeEntfernung = Eintrag.B(c, a, "Show distance", true, D("Writes the distance in meters below the box.", 97));
+			ZeigeLeben = Eintrag.B(c, a, "Show health bar", true, D("Vertical health bar left of the box (total health).", 96));
+			ZeigeKopf = Eintrag.B(c, a, "Show head dot", false, D("Small dot on the head.", 95));
+			ZeigeVerdeckte = Eintrag.B(c, a, "Draw occluded enemies", true, D("Off = only enemies you have a clear line of sight to "
 				+ "are drawn (then the ESP does not show through walls).", 94));
-			AlphaSichtbar = c.Bind(a, "Opacity when visible", 1f, D("Opacity of the drawing for enemies in line of sight.", 93,
+			AlphaSichtbar = Eintrag.B(c, a, "Opacity when visible", 1f, D("Opacity of the drawing for enemies in line of sight.", 93,
 				new AcceptableValueRange<float>(0.05f, 1f)));
-			AlphaVerdeckt = c.Bind(a, "Opacity when occluded", 0.45f, D("Opacity for enemies behind cover. Lower than the "
+			AlphaVerdeckt = Eintrag.B(c, a, "Opacity when occluded", 0.45f, D("Opacity for enemies behind cover. Lower than the "
 				+ "visible value makes them easy to tell apart.", 92, new AcceptableValueRange<float>(0.05f, 1f)));
-			FernAb = c.Bind(a, "Simplify beyond (m)", 150f, D("Enemies farther than this get only a small marker and the "
+			FernAb = Eintrag.B(c, a, "Simplify beyond (m)", 150f, D("Enemies farther than this get only a small marker and the "
 				+ "distance - no box, type label or health bar. 0 = never simplify.", 91, new AcceptableValueRange<float>(0f, 1500f)));
-			SchriftProzent = c.Bind(a, "Label size (% of screen height)", 1.5f, D("Font size relative to the screen height, so "
+			SchriftProzent = Eintrag.B(c, a, "Label size (% of screen height)", 1.5f, D("Font size relative to the screen height, so "
 				+ "it looks the same at 1080p and 4K.", 90, new AcceptableValueRange<float>(0.8f, 4f)));
-			Linie = c.Bind(a, "Line thickness (pixels at 1080p)", 1.5f, D("Scaled with the screen height.", 89,
+			Linie = Eintrag.B(c, a, "Line thickness (pixels at 1080p)", 1.5f, D("Scaled with the screen height.", 89,
 				new AcceptableValueRange<float>(1f, 6f)));
-			MarkerProzent = c.Bind(a, "Marker size (% of screen height)", 0.9f, D("Size of the small marker / head dot.", 88,
+			MarkerProzent = Eintrag.B(c, a, "Marker size (% of screen height)", 0.9f, D("Size of the small marker / head dot.", 88,
 				new AcceptableValueRange<float>(0.3f, 3f)));
 			Color[] farben =
 			{
@@ -147,7 +147,7 @@ namespace Zielhilfe
 			};
 			for (int i = 0; i < 9; i++)
 			{
-				Farbe[i] = c.Bind(a, "Color: " + TypName[i], farben[i], D("Color for " + TypName[i] + ".", 80 - i));
+				Farbe[i] = Eintrag.B(c, a, "Color: " + TypName[i], farben[i], D("Color for " + TypName[i] + ".", 80 - i));
 			}
 		}
 	}

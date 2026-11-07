@@ -83,6 +83,10 @@ namespace Zielhilfe
 		public bool? IsAdvanced;
 
 		public int? Order;
+
+		// false = der ConfigurationManager blendet den Eintrag aus (wird beim
+		// Oeffnen von F12 gelesen). Steuert "Show all settings" (QuickSetup.cs).
+		public bool? Browsable;
 	}
 	internal static class Einstellungen
 	{
@@ -478,24 +482,24 @@ namespace Zielhilfe
 			float meter, float staerke, float reibung, float magnet, float zeit, string warum)
 		{
 			int i = (int)k;
-			KlasseEigen[i] = c.Bind(sektion, "Use own values instead of general", eigen, Reihe(warum, 100));
-			KlasseMeter[i] = c.Bind(sektion, "Radius in meters from zone edge", meter,
+			KlasseEigen[i] = Eintrag.B(c, sektion, "Use own values instead of general", eigen, Reihe(warum, 100));
+			KlasseMeter[i] = Eintrag.B(c, sektion, "Radius in meters from zone edge", meter,
 				new ConfigDescription("As in \"1b\", but for this class only (radius type Meters).", new AcceptableValueRange<float>(0.05f, 5f)));
-			KlasseStaerke[i] = c.Bind(sektion, "Pull strength (weight)", staerke,
+			KlasseStaerke[i] = Eintrag.B(c, sektion, "Pull strength (weight)", staerke,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 1f)));
-			KlasseReibung[i] = c.Bind(sektion, "Friction", reibung,
+			KlasseReibung[i] = Eintrag.B(c, sektion, "Friction", reibung,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 1f)));
-			KlasseMagnet[i] = c.Bind(sektion, "Hold without mouse (magnet), maximum degrees per second", magnet,
+			KlasseMagnet[i] = Eintrag.B(c, sektion, "Hold without mouse (magnet), maximum degrees per second", magnet,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 60f)));
-			KlasseMagnetZeit[i] = c.Bind(sektion, "Magnet pull time in seconds", zeit,
+			KlasseMagnetZeit[i] = Eintrag.B(c, sektion, "Magnet pull time in seconds", zeit,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0.02f, 1f)));
-			KlasseMitAnteil[i] = c.Bind(sektion, "Target tracking share", 0.7f,
+			KlasseMitAnteil[i] = Eintrag.B(c, sektion, "Target tracking share", 0.7f,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 1f)));
-			KlasseMitDeckel[i] = c.Bind(sektion, "Target tracking maximum degrees per second", 60f,
+			KlasseMitDeckel[i] = Eintrag.B(c, sektion, "Target tracking maximum degrees per second", 60f,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 200f)));
-			KlasseSchubDauer[i] = c.Bind(sektion, "Capture boost duration (s)", 0.3f,
+			KlasseSchubDauer[i] = Eintrag.B(c, sektion, "Capture boost duration (s)", 0.3f,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 1f)));
-			KlasseSchubMax[i] = c.Bind(sektion, "Capture boost maximum degrees per second", 40f,
+			KlasseSchubMax[i] = Eintrag.B(c, sektion, "Capture boost maximum degrees per second", 40f,
 				new ConfigDescription("As in \"1b\", but for this class only.", new AcceptableValueRange<float>(0f, 150f)));
 		}
 
@@ -505,29 +509,29 @@ namespace Zielhilfe
 			// Vor allen Binds merken, welche Eintraege die cfg schon unter den
 			// neuen (englischen) Namen hat - die werden nie ueberschrieben.
 			HashSet<ConfigDefinition> vorher = Einstellungsumzug.Vorhandene(c);
-			KampfAufzeichnung = c.Bind("8 Diagnostics", "Combat recording", defaultValue: false, Reihe(
+			KampfAufzeichnung = Eintrag.B(c, "8 Diagnostics", "Combat recording", defaultValue: false, Reihe(
 				"Records every fight frame by frame (own player, mouse including all correction "
 				+ "shares, enemies with hit zones, armor and AI intent, shots, hits) to "
 				+ "BepInEx/Zielhilfe-Recordings/<date>-<map>/, one gzip file (JSON Lines) per fight. "
 				+ "Format: see AUFZEICHNUNG-FORMAT.md next to the source code (field names are German). "
 				+ "Written in a background thread.", 50));
-			AufzMaxMB = c.Bind("8 Diagnostics", "Recording limit per raid (MB)", 200, Reihe(new ConfigDescription(
+			AufzMaxMB = Eintrag.B(c, "8 Diagnostics", "Recording limit per raid (MB)", 200, Reihe(new ConfigDescription(
 				"After this, nothing more is recorded in this raid.",
 				new AcceptableValueRange<int>(10, 5000)), 49));
-			AufzMaxRaids = c.Bind("8 Diagnostics", "Recording: keep only the last x raids", 20, Reihe(new ConfigDescription(
+			AufzMaxRaids = Eintrag.B(c, "8 Diagnostics", "Recording: keep only the last x raids", 20, Reihe(new ConfigDescription(
 				"Older raid folders are deleted when a new raid starts.",
 				new AcceptableValueRange<int>(1, 500)), 48));
-			AufzSichtMeter = c.Bind("8 Diagnostics", "Fight starts when an enemy sees you, up to x meters", 150f, Reihe(new ConfigDescription(
+			AufzSichtMeter = Eintrag.B(c, "8 Diagnostics", "Fight starts when an enemy sees you, up to x meters", 150f, Reihe(new ConfigDescription(
 				"A fight starts with: target inside the capture area, own shot, a hit on you, "
 				+ "or an enemy that has you as its target and sees you (up to this distance). "
 				+ "It ends 4 s after the last such activity; 1 s before the start is recorded as well.",
 				new AcceptableValueRange<float>(10f, 1000f)), 47));
-			An = c.Bind("1 General", "Enabled", defaultValue: true, Reihe("Off = the aim assist does nothing.", 100));
-			Modus = c.Bind("9 Legacy Modes - General", "When it pulls", Ausloeser.HoldKey, Alt("HoldKey = only while the key is held (recommended). ToggleKey = key switches on and off. Always = permanently."));
-			Taste = c.Bind("1 General", "Hotkey", KeyCode.LeftAlt, Reihe("Used for \"When active\" = HoldKey or ToggleKey (and for the legacy modes).", 90));
-			Diagnose = c.Bind("8 Diagnostics", "Diagnostics to log", defaultValue: false, "On = writes a line to the BepInEx log at the diagnostics interval; with Soft Aim (mouse) also a SHOT line for each own shot and a HIT line for each hit: whether a raid is running, whether the key works, how many enemies were candidates and why they were dropped. Only switch on for troubleshooting.");
+			An = Eintrag.B(c, QuickSetup.Sektion, "Enabled", defaultValue: true, Reihe("Master switch. Off = the mod does nothing (aim assist and Enemy ESP).", 100));
+			Modus = Eintrag.B(c, "9 Legacy Modes - General", "When it pulls", Ausloeser.HoldKey, Alt("HoldKey = only while the key is held (recommended). ToggleKey = key switches on and off. Always = permanently."));
+			Taste = Eintrag.B(c, "1 General", "Hotkey", KeyCode.LeftAlt, Reihe("Used for \"When active\" = HoldKey or ToggleKey (and for the legacy modes).", 90));
+			Diagnose = Eintrag.B(c, "8 Diagnostics", "Diagnostics to log", defaultValue: false, "On = writes a line to the BepInEx log at the diagnostics interval; with Soft Aim (mouse) also a SHOT line for each own shot and a HIT line for each hit: whether a raid is running, whether the key works, how many enemies were candidates and why they were dropped. Only switch on for troubleshooting.");
 
-			DiagnoseTakt = c.Bind("8 Diagnostics", "Diagnostics interval in seconds", 1f, new ConfigDescription(
+			DiagnoseTakt = Eintrag.B(c, "8 Diagnostics", "Diagnostics interval in seconds", 1f, new ConfigDescription(
 					"How often a diagnostics line is written. 1 second is enough to "
 					+ "see whether something is fundamentally stuck. To examine single "
 					+ "shots set it MUCH smaller - 0 = every frame. Then you can see whether "
@@ -536,7 +540,7 @@ namespace Zielhilfe
 					new AcceptableValueRange<float>(0f, 5f)));
 
 			// --- Soft Aim per Mauseingabe ------------------------------------
-			Art = c.Bind("1b Soft Aim (mouse)", "Assist type", Zielmodus.SoftAimMouse, Reihe(new ConfigDescription(
+			Art = Eintrag.B(c, "1b Soft Aim (mouse)", "Assist type", Zielmodus.SoftAimMouse, Reihe(new ConfigDescription(
 					"SoftAimMouse = real soft aim (recommended). The assist never turns on its "
 					+ "own. It intercepts your mouse movement and bends it a bit towards the "
 					+ "target as long as the weapon's point of impact is inside the radius around "
@@ -548,38 +552,38 @@ namespace Zielhilfe
 					+ "\"Advanced settings\"); SoftAimMouse uses this section (plus target selection, "
 					+ "line-of-sight check and exclusions from \"2 Target\"/\"3\" and the "
 					+ "lead from \"5\")."), 100));
-			SoftWann = c.Bind("1b Soft Aim (mouse)", "When active", Ausloeser.Always, Reihe(new ConfigDescription(
+			SoftWann = Eintrag.B(c, "1b Soft Aim (mouse)", "When active", Ausloeser.Always, Reihe(new ConfigDescription(
 					"Always = permanently ready. Harmless, because nothing happens without your own "
 					+ "mouse movement. HoldKey / ToggleKey = as before, with the "
 					+ "hotkey from \"1 General\"."), 95));
-			SoftNurAnschlag = c.Bind("1b Soft Aim (mouse)", "Only when aiming down sights (ADS)", defaultValue: false, Reihe("On = only while aiming down sights. Off = also from the hip. In both cases the calculation uses the weapon's "
+			SoftNurAnschlag = Eintrag.B(c, "1b Soft Aim (mouse)", "Only when aiming down sights (ADS)", defaultValue: false, Reihe("On = only while aiming down sights. Off = also from the hip. In both cases the calculation uses the weapon's "
 				+ "pointing direction, not the camera - "
 				+ "from the hip the muzzle points a few degrees off screen center, "
 				+ "and the assist aims where the bullet will actually go.", 90));
-			ZoneNachPanzerung = c.Bind("1b Soft Aim (mouse)", "Choose zone by armor", defaultValue: true, Reihe("On = instead of the fixed body part, the zone with the best expected "
+			ZoneNachPanzerung = Eintrag.B(c, "1b Soft Aim (mouse)", "Choose zone by armor", defaultValue: true, Reihe("On = instead of the fixed body part, the zone with the best expected "
 				+ "hit: for each enemy the worn armor is queried (same calculation as the game: "
 				+ "ShotMatches + penetration chance from armor class, durability and penetration "
 				+ "of the loaded round), plus the enemy's facing direction (chest/back plate, sides). "
 				+ "Weights: head 1.0, torso 0.6, pelvis 0.25 (head and thorax are lethal, the belly is not). "
 				+ "On the head, the least armored FREE head box is chosen (e.g. face "
 				+ "without visor). Off = body part from \"2 Target\" as before.", 85));
-			ZoneKopf = c.Bind("1b Soft Aim (mouse)", "Allowed zone: Head", defaultValue: true, Reihe(
+			ZoneKopf = Eintrag.B(c, "1b Soft Aim (mouse)", "Allowed zone: Head", defaultValue: true, Reihe(
 				"May the assist pull onto the head (zone selection, fallback zones).", 84));
-			ZoneRumpf = c.Bind("1b Soft Aim (mouse)", "Allowed zone: Torso", defaultValue: true, Reihe(
+			ZoneRumpf = Eintrag.B(c, "1b Soft Aim (mouse)", "Allowed zone: Torso", defaultValue: true, Reihe(
 				"May the assist pull onto the thorax.", 83));
-			ZoneBecken = c.Bind("1b Soft Aim (mouse)", "Allowed zone: Pelvis", defaultValue: false, Reihe(
+			ZoneBecken = Eintrag.B(c, "1b Soft Aim (mouse)", "Allowed zone: Pelvis", defaultValue: false, Reihe(
 				"Off = pelvis only as a fallback, when head AND torso are covered or cannot be "
 				+ "penetrated by the round (then pelvis first, then legs).", 82));
-			ZoneBeine = c.Bind("1b Soft Aim (mouse)", "Allowed zone: Legs", defaultValue: false, Reihe(
+			ZoneBeine = Eintrag.B(c, "1b Soft Aim (mouse)", "Allowed zone: Legs", defaultValue: false, Reihe(
 				"Off = legs only as a last resort (head and torso not possible, pelvis neither). "
 				+ "A leg hit does not kill; with weight 0.1 (about 10 hits to kill) "
 				+ "they would otherwise only win if the head is almost never hit.", 81));
-			NurFeinde = c.Bind("1b Soft Aim (mouse)", "Enemies only", defaultValue: true, Reihe("On = only bots whose group is hostile to you - the game's own logic "
+			NurFeinde = Eintrag.B(c, "1b Soft Aim (mouse)", "Enemies only", defaultValue: true, Reihe("On = only bots whose group is hostile to you - the game's own logic "
 				+ "(BotsGroup: listed as ally = never, already registered as enemy = yes, otherwise IsPlayerEnemy: side, karma, boss loyalty, "
 				+ "friend/warn/enemy types from the bot settings). As a Scav, "
 				+ "peaceful Scavs stay out until they turn hostile. Applies to all "
 				+ "modes. \"3 Exclusions\" applies in addition.", 80));
-			RcsQuer = c.Bind("1b Soft Aim (mouse)", "Recoil compensation horizontal (%)", 0f, Reihe(new ConfigDescription(
+			RcsQuer = Eintrag.B(c, "1b Soft Aim (mouse)", "Recoil compensation horizontal (%)", 0f, Reihe(new ConfigDescription(
 					"Only while shooting, subtracts the NEWLY added weapon recoil, "
 					+ "independent of a target, via the mouse movement (does not set the camera). "
 					+ "It measures how far the shot line has moved relative to the "
@@ -588,7 +592,7 @@ namespace Zielhilfe
 					+ "(default, because you pull the recoil down yourself - both together "
 					+ "would overcorrect). Try 50.",
 					new AcceptableValueRange<float>(0f, 100f)), 20));
-			RcsHoch = c.Bind("1b Soft Aim (mouse)", "Recoil compensation vertical (%)", 0f, Reihe(new ConfigDescription(
+			RcsHoch = Eintrag.B(c, "1b Soft Aim (mouse)", "Recoil compensation vertical (%)", 0f, Reihe(new ConfigDescription(
 					"Like horizontal, for the vertical part (the larger one in EFT). 0 = off. "
 					+ "Try 50.",
 					new AcceptableValueRange<float>(0f, 100f)), 25));
@@ -611,27 +615,27 @@ namespace Zielhilfe
 				+ "(1 m instead of 0.75 m). May be switched off for slugs.");
 			KlasseAnlegen(c, Waffenklasse.MG, "1h Class Machine Gun", false, 0.75f, 0.5f, 0.3f, 10f, 0.05f,
 				"Off = general values from \"1b\".");
-			SoftRadiusArt = c.Bind("1b Soft Aim (mouse)", "Radius type", Radiusart.Meters, Reihe(new ConfigDescription(
+			SoftRadiusArt = Eintrag.B(c, "1b Soft Aim (mouse)", "Radius type", Radiusart.Meters, Reihe(new ConfigDescription(
 					"Meters = the capture area is a DISTANCE at the enemy (\"Radius in meters "
 					+ "from zone edge\"), converted with each enemy's distance: "
 					+ "radius in degrees = atan(meters / distance). A fixed angle is too narrow up close "
 					+ "and too wide far away: 3 degrees are only 16 cm at 3 m, but 4.2 m at 80 m. "
 					+ "Degrees = the fixed value \"Radius in degrees\", as before."), 75));
-			SoftRadiusMeter = c.Bind("1b Soft Aim (mouse)", "Radius in meters from zone edge", 0.75f, Reihe(new ConfigDescription(
+			SoftRadiusMeter = Eintrag.B(c, "1b Soft Aim (mouse)", "Radius in meters from zone edge", 0.75f, Reihe(new ConfigDescription(
 					"Only for radius type Meters. How far beside the hit zone the assist still "
 					+ "acts, in meters at the enemy. Simulation (sweep across past the head, "
 					+ "strength 0.5, friction 0.3): 0.5 m only pulls in lines that are up to about "
 					+ "0.1 m off; 0.75 m also pulls lines 0.25 m off onto the head at 10-80 m; "
 					+ "1 m pulls 0.5 m off in to 0.2 m.",
 					new AcceptableValueRange<float>(0.05f, 5f)), 70));
-			SoftRadiusMaxGrad = c.Bind("1b Soft Aim (mouse)", "Maximum radius (degrees)", 12f, Reihe(new ConfigDescription(
+			SoftRadiusMaxGrad = Eintrag.B(c, "1b Soft Aim (mouse)", "Maximum radius (degrees)", 12f, Reihe(new ConfigDescription(
 					"Only for radius type Meters. Upper limit for close combat: at 1-2 m "
 					+ "0.75 m would be 20-37 degrees, a large part of the screen. 12 degrees is "
 					+ "about a sixth of the screen height on each side and still "
 					+ "larger than the head at 1 m (5.7 degrees); the limit is reached from "
 					+ "about 3.5 m.",
 					new AcceptableValueRange<float>(1f, 30f)), 65));
-			SoftRadiusMinGrad = c.Bind("1b Soft Aim (mouse)", "Minimum radius (degrees)", 1f, Reihe(new ConfigDescription(
+			SoftRadiusMinGrad = Eintrag.B(c, "1b Soft Aim (mouse)", "Minimum radius (degrees)", 1f, Reihe(new ConfigDescription(
 					"Only for radius type Meters. Lower limit for long range: 0.75 m "
 					+ "would be only 0.14 degrees at 300 m - less than the weapon sway when "
 					+ "aiming down sights. 1 degree (before: 0.3) applies from about 43 m: at range "
@@ -639,7 +643,7 @@ namespace Zielhilfe
 					+ "1.5 -> 1.0 s). That the larger area does not stick is handled by \"Release "
 					+ "after travel\".",
 					new AcceptableValueRange<float>(0.05f, 5f)), 60));
-			SoftRadius = c.Bind("1b Soft Aim (mouse)", "Radius in degrees", 3f, Reihe(new ConfigDescription(
+			SoftRadius = Eintrag.B(c, "1b Soft Aim (mouse)", "Radius in degrees", 3f, Reihe(new ConfigDescription(
 					"Only for radius type Degrees. "
 					+ "How close the weapon's point of impact must be to a hit zone "
 					+ "for the assist to act - measured from the EDGE of the zone (head, "
@@ -652,7 +656,7 @@ namespace Zielhilfe
 					+ "the own one is out of reach. In this mode it replaces the field of view of the "
 					+ "legacy modes.",
 					new AcceptableValueRange<float>(0.2f, 15f)), 55));
-			SoftStaerke = c.Bind("1b Soft Aim (mouse)", "Pull strength (weight)", 0.5f, Reihe(new ConfigDescription(
+			SoftStaerke = Eintrag.B(c, "1b Soft Aim (mouse)", "Pull strength (weight)", 0.5f, Reihe(new ConfigDescription(
 					"How strongly the mouse movement is bent towards the target. Calculated as "
 					+ "result = w x target vector + (1 - w) x mouse movement; the target vector "
 					+ "points at the target and is as long as your own movement. This "
@@ -662,7 +666,7 @@ namespace Zielhilfe
 					+ "your own movement already reaches the target point, and inside the zone it fades "
 					+ "to 0 towards the center - so nothing snaps or sticks.",
 					new AcceptableValueRange<float>(0f, 1f)), 50));
-			SoftReibung = c.Bind("1b Soft Aim (mouse)", "Friction", 0.3f, Reihe(new ConfigDescription(
+			SoftReibung = Eintrag.B(c, "1b Soft Aim (mouse)", "Friction", 0.3f, Reihe(new ConfigDescription(
 					"Slows the part of your movement that goes ACROSS or AWAY from the target "
 					+ "while you are inside the radius - full in the middle, fading to 0 "
 					+ "towards the edge. Movement towards the target is never slowed. 0 = off, "
@@ -670,14 +674,14 @@ namespace Zielhilfe
 					+ "of forward motion lost), 1 = in the middle the sideways movement stands still "
 					+ "(feels sticky).",
 					new AcceptableValueRange<float>(0f, 1f)), 45));
-			SoftDeckel = c.Bind("1b Soft Aim (mouse)", "Maximum correction (degrees per second)", 120f, Reihe(new ConfigDescription(
+			SoftDeckel = Eintrag.B(c, "1b Soft Aim (mouse)", "Maximum correction (degrees per second)", 120f, Reihe(new ConfigDescription(
 					"Upper limit for what the assist changes in your movement "
 					+ "(pull and friction together). Converted per frame with the frame time "
 					+ "and therefore independent of the frame rate. On fast "
 					+ "sweeps the cap applies, and the assist then hardly shows.",
 					new AcceptableValueRange<float>(1f, 600f)), 40));
 
-			SoftMagnet = c.Bind("1b Soft Aim (mouse)", "Hold without mouse (magnet), maximum degrees per second", 10f, Reihe(new ConfigDescription(
+			SoftMagnet = Eintrag.B(c, "1b Soft Aim (mouse)", "Hold without mouse (magnet), maximum degrees per second", 10f, Reihe(new ConfigDescription(
 					"The only part that also acts with a STILL mouse: if the "
 					+ "shot line is inside the radius of a hit zone, it is slowly pulled back to the "
 					+ "target point - against sway and recoil. The bullet's real flight direction is "
@@ -688,7 +692,7 @@ namespace Zielhilfe
 					+ "Above 10 it gets sticky: already at 20 you can no longer get off the head "
 					+ "with a very slow mouse movement (5 degrees/s); from 10 degrees/s you always can.",
 					new AcceptableValueRange<float>(0f, 60f)), 35));
-			SoftMitAnteil = c.Bind("1b Soft Aim (mouse)", "Target tracking share", 0.7f, Reihe(new ConfigDescription(
+			SoftMitAnteil = Eintrag.B(c, "1b Soft Aim (mouse)", "Target tracking share", 0.7f, Reihe(new ConfigDescription(
 					"Turns along with moving targets - but only the DIFFERENCE: share x (turn rate "
 					+ "of the line fire point-target point minus your own turn rate), both "
 					+ "smoothed (0.08 s). If you already lead yourself, nothing is added. Only inside the "
@@ -697,18 +701,18 @@ namespace Zielhilfe
 					+ "(head per shot without/with): zigzag 30 m 28 -> 34 %, 80 m 19 -> 24 %; "
 					+ "running straight 80 m 31 -> 37 %; turning away unchanged.",
 					new AcceptableValueRange<float>(0f, 1f)), 28));
-			SoftMitDeckel = c.Bind("1b Soft Aim (mouse)", "Target tracking maximum degrees per second", 60f, Reihe(new ConfigDescription(
+			SoftMitDeckel = Eintrag.B(c, "1b Soft Aim (mouse)", "Target tracking maximum degrees per second", 60f, Reihe(new ConfigDescription(
 					"Upper limit of target tracking. A walking enemy at 10 m turns at about "
 					+ "25 degrees/s, a sprinting one at 5 m at 70.",
 					new AcceptableValueRange<float>(0f, 200f)), 27));
-			DeckelDurchZoom = c.Bind("1b Soft Aim (mouse)", "Divide caps by zoom", defaultValue: true, Reihe(
+			DeckelDurchZoom = Eintrag.B(c, "1b Soft Aim (mouse)", "Divide caps by zoom", defaultValue: true, Reihe(
 				"All corrections are in degrees (correct for the hit), but in a scope they appear "
 				+ "larger by the magnification: 40 degrees/s capture boost feels like 240 at 6x. On = "
 				+ "capture boost, target tracking and the pull cap are divided by the magnification, "
 				+ "at most down to the magnet cap. The magnet itself stays: dividing it costs "
 				+ "almost all hits (simulation holding still with sustained fire, 30 m: 95 % at 10 degrees/s, "
 				+ "28 % at 10/4, 7 % at 10/6) - it carries the recoil recovery.", 29));
-			MagnetWeicht = c.Bind("1b Soft Aim (mouse)", "Magnet yields to own mouse above x degrees per second (screen)", 10f, Reihe(new ConfigDescription(
+			MagnetWeicht = Eintrag.B(c, "1b Soft Aim (mouse)", "Magnet yields to own mouse above x degrees per second (screen)", 10f, Reihe(new ConfigDescription(
 				"If you steer faster than this value - measured on screen (degrees per second x "
 				+ "magnification) and relative to the target's movement - the magnet no longer holds AGAINST "
 				+ "your movement (it only pulls across it). With a still or trembling mouse it holds fully "
@@ -717,27 +721,27 @@ namespace Zielhilfe
 				+ "own movement when sweeping away 17 -> 2 %, head while tracking 72 -> 59 %. 0 = off "
 				+ "(more hits, more resistance), 3 = even freer (head 42 %).",
 				new AcceptableValueRange<float>(0f, 100f)), 30));
-			SoftSchubDauer = c.Bind("1b Soft Aim (mouse)", "Capture boost duration (s)", 0.3f, Reihe(new ConfigDescription(
+			SoftSchubDauer = Eintrag.B(c, "1b Soft Aim (mouse)", "Capture boost duration (s)", 0.3f, Reihe(new ConfigDescription(
 					"When the shot line enters the capture area of the desired zone (also right "
 					+ "after a target change), the magnet may pull harder for this time "
 					+ "(\"Capture boost maximum\"). Aborts immediately if you pull away from the zone at least "
 					+ "10 degrees/s or \"Release after travel\" applies.",
 					new AcceptableValueRange<float>(0f, 1f)), 26));
-			SoftSchubMax = c.Bind("1b Soft Aim (mouse)", "Capture boost maximum degrees per second", 40f, Reihe(new ConfigDescription(
+			SoftSchubMax = Eintrag.B(c, "1b Soft Aim (mouse)", "Capture boost maximum degrees per second", 40f, Reihe(new ConfigDescription(
 					"Magnet cap during the capture boost instead of the normal one. 0 = off. "
 					+ "Simulation 10 m: 90 % of the time to head after release 0.72 -> about 0.4 s.",
 					new AcceptableValueRange<float>(0f, 150f)), 25));
-			MitOhneHilfe = c.Bind("1b Soft Aim (mouse)", "Tracking: do not count assist rotation as own", true, new ConfigDescription(
+			MitOhneHilfe = Eintrag.B(c, "1b Soft Aim (mouse)", "Tracking: do not count assist rotation as own", true, new ConfigDescription(
 					"Target tracking compares the target's turn rate with YOUR rotation. On: the rotation the "
 					+ "assist makes itself does not count - so it tracks walking enemies "
 					+ "at full speed instead of only ~41 %. Off = old behavior."));
-			SoftWiedergreifen = c.Bind("1b Soft Aim (mouse)", "Re-engage after release (s)", 0.06f, new ConfigDescription(
+			SoftWiedergreifen = Eintrag.B(c, "1b Soft Aim (mouse)", "Re-engage after release (s)", 0.06f, new ConfigDescription(
 					"If the assist was released by your own mouse movement, it engages again as soon as the mouse "
 					+ "has been calm for this long - instead of waiting until the travel sum has decayed (up to 0.5 s). "
 					+ "Recording Interchange 02.11. (6x, 50 m, enemy walking 2-5 m/s): released four times by "
 					+ "small corrections, afterwards 0.3-0.5 s of no following, distance grew to ~1 degree. 0 = off.",
 					new AcceptableValueRange<float>(0f, 0.5f)));
-			SoftLoesenWeg = c.Bind("1b Soft Aim (mouse)", "Release after travel (degrees)", 2f, Reihe(new ConfigDescription(
+			SoftLoesenWeg = Eintrag.B(c, "1b Soft Aim (mouse)", "Release after travel (degrees)", 2f, Reihe(new ConfigDescription(
 					"Sums up how far you move the mouse AWAY from the desired zone (towards the zone "
 					+ "does not count, decays with 0.5 s). From this value on, magnet, target tracking "
 					+ "and capture boost are fully off until the sum has fallen below half. "
@@ -745,7 +749,7 @@ namespace Zielhilfe
 					+ "past (simulation 5 degrees/s, 10-30 m: from almost always stuck to "
 					+ "10-22 %). 0 = off.",
 					new AcceptableValueRange<float>(0f, 10f)), 24));
-			SoftMagnetZeit = c.Bind("1b Soft Aim (mouse)", "Magnet pull time in seconds", 0.05f, Reihe(new ConfigDescription(
+			SoftMagnetZeit = Eintrag.B(c, "1b Soft Aim (mouse)", "Magnet pull time in seconds", 0.05f, Reihe(new ConfigDescription(
 					"How fast the magnet removes a remainder: after this time about "
 					+ "two thirds are gone. Small = holds firmer, large = softer. The "
 					+ "hit rate when holding still depends mostly on this value, not on "
@@ -756,13 +760,13 @@ namespace Zielhilfe
 					+ "30 fps 0.67 instead of 0.49).",
 					new AcceptableValueRange<float>(0.02f, 1f)), 30));
 
-			Blickfeld = c.Bind("9 Legacy Modes - Target", "Field of view (pixels)", 61f, Alt(new ConfigDescription("How far an enemy may be from the screen center to be considered at all. Small = only what you are almost aiming at.", new AcceptableValueRange<float>(10f, 600f))));
-			BlickfeldGrad = c.Bind("9 Legacy Modes - Target", "Field of view (degrees)", 3f, Alt(new ConfigDescription("Recommended instead of the pixel value: an angle stays the same when zooming. The pixel value does not - with a scope the camera's field of view shrinks, the same enemy is then mathematically many times farther from the center and drops out of the field of view. That is exactly why the aim assist helped at a low zoom level and no longer at a high one. 0 = use the pixel value after all.", new AcceptableValueRange<float>(0f, 30f))));
-			Reichweite = c.Bind("2 Target", "Range in meters", 930f, new ConfigDescription("Enemies farther away are ignored.", new AcceptableValueRange<float>(10f, 1500f)));
-			Ziel = c.Bind("2 Target", "Body part", Knochen.Head, "Head, Chest, Pelvis or Legs. With \"Choose zone by armor\" "
+			Blickfeld = Eintrag.B(c, "9 Legacy Modes - Target", "Field of view (pixels)", 61f, Alt(new ConfigDescription("How far an enemy may be from the screen center to be considered at all. Small = only what you are almost aiming at.", new AcceptableValueRange<float>(10f, 600f))));
+			BlickfeldGrad = Eintrag.B(c, "9 Legacy Modes - Target", "Field of view (degrees)", 3f, Alt(new ConfigDescription("Recommended instead of the pixel value: an angle stays the same when zooming. The pixel value does not - with a scope the camera's field of view shrinks, the same enemy is then mathematically many times farther from the center and drops out of the field of view. That is exactly why the aim assist helped at a low zoom level and no longer at a high one. 0 = use the pixel value after all.", new AcceptableValueRange<float>(0f, 30f))));
+			Reichweite = Eintrag.B(c, "2 Target", "Range in meters", 930f, new ConfigDescription("Enemies farther away are ignored.", new AcceptableValueRange<float>(10f, 1500f)));
+			Ziel = Eintrag.B(c, "2 Target", "Body part", Knochen.Head, "Head, Chest, Pelvis or Legs. With \"Choose zone by armor\" "
 				+ "the assist picks the zone itself; then this value only determines the point at which "
 				+ "target selection checks the line of sight.");
-			Kopfziel = c.Bind("2 Target", "Head hitbox", Kopfbox.Visible,
+			Kopfziel = Eintrag.B(c, "2 Target", "Head hitbox", Kopfbox.Visible,
 				new ConfigDescription(
 					"What is aimed at when the body part is \"Head\". In the game the head "
 					+ "is not a single box but eight - all count as a hit on the "
@@ -780,14 +784,14 @@ namespace Zielhilfe
 					+ "Jaw = Jaw, just below.\n"
 					+ "Skull = ParietalHead, on top."));
 
-			BoxHoehe = c.Bind("2 Target", "Height within head box", 0.72f, new ConfigDescription(
+			BoxHoehe = Eintrag.B(c, "2 Target", "Height within head box", 0.72f, new ConfigDescription(
 				"WHERE in the hit box to aim. 0 = bottom edge, 0.5 = middle, 1 = top edge. "
 				+ "The middle of the head box is at chin height, not in the middle of the skull - "
 				+ "at 0.5 the assist therefore visibly aimed too low. The value is converted to the "
 				+ "actual height of the box, so it adapts by itself "
 				+ "when the enemy is crouched or another box is chosen.",
 				new AcceptableValueRange<float>(0f, 1f)));
-			VomFeuerpunkt = c.Bind("9 Legacy Modes - Target", "Aim angle from fire point instead of camera", defaultValue: true, Alt(new ConfigDescription(
+			VomFeuerpunkt = Eintrag.B(c, "9 Legacy Modes - Target", "Aim angle from fire point instead of camera", defaultValue: true, Alt(new ConfigDescription(
 					"The angle to the target used to be calculated from the CAMERA. "
 					+ "The bullet starts at the muzzle, though, which sits quite a bit "
 					+ "lower and further forward. At short range this offset is not a rounding error: "
@@ -802,7 +806,7 @@ namespace Zielhilfe
 					+ "The turn-rate measurement for target tracking deliberately stays on "
 					+ "the camera: the fire point wobbles with the weapon animation, "
 					+ "and that wobble has no place in a speed measurement.")));
-			BrustAusweichen = c.Bind("2 Target", "Fall back to chest when head is covered",
+			BrustAusweichen = Eintrag.B(c, "2 Target", "Fall back to chest when head is covered",
 				defaultValue: true,
 				new ConfigDescription(
 					"Only without \"Choose zone by armor\" (there a covered head zone drops out anyway). "
@@ -811,9 +815,9 @@ namespace Zielhilfe
 					+ "and above all actually hittable. In the raid of 18.09.2026 "
 					+ "this concerned 6 of 1231 frames, so it is not a big lever - "
 					+ "but in exactly those frames the shot was certainly wasted."));
-			NurSichtbare = c.Bind("2 Target", "Clear line of sight only", defaultValue: true, "On = enemies behind walls are skipped.");
+			NurSichtbare = Eintrag.B(c, "2 Target", "Clear line of sight only", defaultValue: true, "On = enemies behind walls are skipped.");
 
-			DurchschussIgnorieren = c.Bind("2 Target", "Ignore shoot-through obstacles", defaultValue: true,
+			DurchschussIgnorieren = Eintrag.B(c, "2 Target", "Ignore shoot-through obstacles", defaultValue: true,
 				"On = glass, chain-link fence, grates, tall grass and the like do "
 				+ "NOT count as a sight obstruction. They stop the line-of-sight ray, but "
 				+ "not the bullet - without this exception the assist drops enemies "
@@ -822,7 +826,7 @@ namespace Zielhilfe
 				+ "penetration values of the collider that was hit), not from a "
 				+ "guessed list. Bodies never count as permeable.");
 
-			DurchschussSchwelle = c.Bind("2 Target", "Shoot-through from probability", 0.5f,
+			DurchschussSchwelle = Eintrag.B(c, "2 Target", "Shoot-through from probability", 0.5f,
 				new ConfigDescription(
 					"For everything that is not see-through anyway (wood, sheet metal, plastic ...): "
 					+ "from which probability it counts as permeable. Calculated as in the "
@@ -830,7 +834,7 @@ namespace Zielhilfe
 					+ "is above the material's level, then chance = obstacle chance of the "
 					+ "round + chance of the material. 1 = only what surely goes through.",
 					new AcceptableValueRange<float>(0f, 1f)));
-			NurKugelEbenen = c.Bind("2 Target", "Check only layers bullets travel on", defaultValue: true,
+			NurKugelEbenen = Eintrag.B(c, "2 Target", "Check only layers bullets travel on", defaultValue: true,
 				new ConfigDescription(
 					"The line-of-sight ray used to run over ALL Unity layers. As a result it was stopped by "
 					+ "things no bullet flies through - above all the "
@@ -839,12 +843,12 @@ namespace Zielhilfe
 					+ "In an open field such a cube stood 11 m in front of an enemy at "
 					+ "162 m and the aim assist did nothing at all. When enabled, only the layers the game "
 					+ "itself uses for projectiles are checked. Switching off restores the old behavior."));
-			Wechselvorsprung = c.Bind("2 Target", "Target switch margin (pixels)", 40f, new ConfigDescription("The current target is kept as long as no other one is better by at least this many pixels. Prevents jumping between two enemies standing next to each other. 0 = always the nearest.", new AcceptableValueRange<float>(0f, 300f)));
-			ScavsAuslassen = c.Bind("3 Exclusions", "Scavs", defaultValue: false, "");
-			PmcsAuslassen = c.Bind("3 Exclusions", "PMCs", defaultValue: false, "");
-			BosseAuslassen = c.Bind("3 Exclusions", "Bosses and guards", defaultValue: false, "");
-			Nachziehen = c.Bind("9 Legacy Modes - Movement", "Pull speed", 60f, Alt(new ConfigDescription("How fast the weapon pulls onto the target, in 1/second. High = hard and fast, low = soft. IMPORTANT: this value is independent of the frame rate - unlike a per-frame smoothing factor, which pulls faster by itself at high fps and changes its speed with every stutter.", new AcceptableValueRange<float>(2f, 200f))));
-			SoftaimHoechstens = c.Bind("9 Legacy Modes - Movement", "Soft aim maximum degrees per second", 80f, Alt(new ConfigDescription(
+			Wechselvorsprung = Eintrag.B(c, "2 Target", "Target switch margin (pixels)", 40f, new ConfigDescription("The current target is kept as long as no other one is better by at least this many pixels. Prevents jumping between two enemies standing next to each other. 0 = always the nearest.", new AcceptableValueRange<float>(0f, 300f)));
+			ScavsAuslassen = Eintrag.B(c, "3 Exclusions", "Scavs", defaultValue: false, "");
+			PmcsAuslassen = Eintrag.B(c, "3 Exclusions", "PMCs", defaultValue: false, "");
+			BosseAuslassen = Eintrag.B(c, "3 Exclusions", "Bosses and guards", defaultValue: false, "");
+			Nachziehen = Eintrag.B(c, "9 Legacy Modes - Movement", "Pull speed", 60f, Alt(new ConfigDescription("How fast the weapon pulls onto the target, in 1/second. High = hard and fast, low = soft. IMPORTANT: this value is independent of the frame rate - unlike a per-frame smoothing factor, which pulls faster by itself at high fps and changes its speed with every stutter.", new AcceptableValueRange<float>(2f, 200f))));
+			SoftaimHoechstens = Eintrag.B(c, "9 Legacy Modes - Movement", "Soft aim maximum degrees per second", 80f, Alt(new ConfigDescription(
 					"ONLY for \"Assist type\" = LegacySoftAim. "
 					+ "How much the assist may contribute per second at most in soft aim mode. "
 					+ "THIS is the setting for the feel: "
@@ -854,13 +858,13 @@ namespace Zielhilfe
 					+ "restrained - if it takes over too little, raise it; "
 					+ "if it still feels sticky, go down to 40.",
 					new AcceptableValueRange<float>(10f, 600f))));
-			Totzone = c.Bind("9 Legacy Modes - Movement", "Dead zone (degrees)", 0.05f, Alt(new ConfigDescription("Below this deviation no more correction is made. Prevents a fine constant jitter right on the target.", new AcceptableValueRange<float>(0f, 1f))));
+			Totzone = Eintrag.B(c, "9 Legacy Modes - Movement", "Dead zone (degrees)", 0.05f, Alt(new ConfigDescription("Below this deviation no more correction is made. Prevents a fine constant jitter right on the target.", new AcceptableValueRange<float>(0f, 1f))));
 
-			MausVorrang = c.Bind("9 Legacy Modes - Movement", "Own mouse has priority", defaultValue: true, Alt("On = as soon as you turn fast yourself, the assist lets go. Without this "
+			MausVorrang = Eintrag.B(c, "9 Legacy Modes - Movement", "Own mouse has priority", defaultValue: true, Alt("On = as soon as you turn fast yourself, the assist lets go. Without this "
 				+ "it resets your view direction every frame and you cannot get away from "
 				+ "a target once it is acquired."));
 
-			MausSchwelle = c.Bind("9 Legacy Modes - Movement", "Priority above x degrees per second", 50f, Alt(new ConfigDescription(
+			MausSchwelle = Eintrag.B(c, "9 Legacy Modes - Movement", "Priority above x degrees per second", 50f, Alt(new ConfigDescription(
 					"At which OWN turn speed the assist lets go. What is measured "
 					+ "is the difference between what the assist last set "
 					+ "and what is actually there in the next frame - that is your mouse. "
@@ -868,21 +872,21 @@ namespace Zielhilfe
 					+ "cannot get off the target. 50 is a calm starting value.",
 					new AcceptableValueRange<float>(5f, 400f))));
 
-			MausNachlauf = c.Bind("9 Legacy Modes - Movement", "Then do not pull for x seconds", 0.25f, Alt(new ConfigDescription(
+			MausNachlauf = Eintrag.B(c, "9 Legacy Modes - Movement", "Then do not pull for x seconds", 0.25f, Alt(new ConfigDescription(
 					"How long the assist stays off after your last turn. Without "
 					+ "this delay it snaps back to the old target immediately between two "
 					+ "mouse movements.",
 					new AcceptableValueRange<float>(0f, 2f))));
-			NachfuehrungStaerke = c.Bind("9 Legacy Modes - Movement", "Track moving targets", 1f, Alt(new ConfigDescription("The most important setting against \"hits standing targets well, moving ones badly\". Plain pulling ALWAYS stays a bit behind a walking enemy - the lag is turn speed divided by pull speed. Here the turn speed of the aim line is measured and exactly that is turned along. 1.0 = lag removed completely. 0 = off, behaves as before. Above 1.0 it runs ahead of the target.", new AcceptableValueRange<float>(0f, 1.5f))));
-			NachfuehrungRuhe = c.Bind("9 Legacy Modes - Movement", "Tracking smoothing (seconds)", 0.08f, Alt(new ConfigDescription("Over how much time the measured turn speed is averaged. Small = reacts immediately to direction changes, but picks up every twitch. Large = calmer, lags briefly on sidesteps.", new AcceptableValueRange<float>(0.02f, 0.5f))));
-			NachfuehrungHoechstens = c.Bind("9 Legacy Modes - Movement", "Tracking maximum degrees per second", 150f, Alt(new ConfigDescription("Safety cap. Prevents an outlier in the measurements from yanking the weapon away.", new AcceptableValueRange<float>(10f, 400f))));
-			FallAusgleich = c.Bind("5 Lead", "Compensate bullet drop", defaultValue: true, "Raises the aim point by what the bullet drops on the way to the target - calculated against the distance your optic is currently zeroed for. Without it the shot is only right at the zero distance and goes too low beyond it.");
-			VorhaltAn = c.Bind("5 Lead", "Enabled", defaultValue: true, "Aims at moving enemies where they will be when the bullet arrives. Off = always aim directly at them.");
-			VorhaltFaktor = c.Bind("5 Lead", "Factor", 1f, new ConfigDescription("1.0 = the calculated flight time unchanged. The ballistics come from the game itself; normally nothing needs doing here. If you shoot behind: increase.", new AcceptableValueRange<float>(0f, 3f)));
-			VorhaltHoechstens = c.Bind("5 Lead", "Maximum (meters)", 4f, new ConfigDescription("Safety limit against outliers in the movement data.", new AcceptableValueRange<float>(0.5f, 20f)));
-			VorhaltAbTempo = c.Bind("5 Lead", "Only above (m/s)", 1.2f, new ConfigDescription("Below this the assist aims directly. Anyone who is just raising the weapon or turning gets no lead. Walking is about 2 m/s.", new AcceptableValueRange<float>(0f, 5f)));
-			VorhaltRuhe = c.Bind("5 Lead", "Smoothing (seconds)", 0.15f, new ConfigDescription("Over how much time the measured speed of the enemy is averaged. Small = follows direction changes immediately, but picks up every twitch. Large = calm, lags on sidesteps. NOTE, meaning changed: the old setting \"Beruhigung\" was a share per FRAME and therefore acted completely differently at 144 fps than at 60. The old entry in the cfg is no longer read.", new AcceptableValueRange<float>(0.02f, 1f)));
-			VorhaltRuheMin = c.Bind("5 Lead", "Minimum smoothing (seconds)", 0.06f,
+			NachfuehrungStaerke = Eintrag.B(c, "9 Legacy Modes - Movement", "Track moving targets", 1f, Alt(new ConfigDescription("The most important setting against \"hits standing targets well, moving ones badly\". Plain pulling ALWAYS stays a bit behind a walking enemy - the lag is turn speed divided by pull speed. Here the turn speed of the aim line is measured and exactly that is turned along. 1.0 = lag removed completely. 0 = off, behaves as before. Above 1.0 it runs ahead of the target.", new AcceptableValueRange<float>(0f, 1.5f))));
+			NachfuehrungRuhe = Eintrag.B(c, "9 Legacy Modes - Movement", "Tracking smoothing (seconds)", 0.08f, Alt(new ConfigDescription("Over how much time the measured turn speed is averaged. Small = reacts immediately to direction changes, but picks up every twitch. Large = calmer, lags briefly on sidesteps.", new AcceptableValueRange<float>(0.02f, 0.5f))));
+			NachfuehrungHoechstens = Eintrag.B(c, "9 Legacy Modes - Movement", "Tracking maximum degrees per second", 150f, Alt(new ConfigDescription("Safety cap. Prevents an outlier in the measurements from yanking the weapon away.", new AcceptableValueRange<float>(10f, 400f))));
+			FallAusgleich = Eintrag.B(c, "5 Lead", "Compensate bullet drop", defaultValue: true, "Raises the aim point by what the bullet drops on the way to the target - calculated against the distance your optic is currently zeroed for. Without it the shot is only right at the zero distance and goes too low beyond it.");
+			VorhaltAn = Eintrag.B(c, "5 Lead", "Enabled", defaultValue: true, "Aims at moving enemies where they will be when the bullet arrives. Off = always aim directly at them.");
+			VorhaltFaktor = Eintrag.B(c, "5 Lead", "Factor", 1f, new ConfigDescription("1.0 = the calculated flight time unchanged. The ballistics come from the game itself; normally nothing needs doing here. If you shoot behind: increase.", new AcceptableValueRange<float>(0f, 3f)));
+			VorhaltHoechstens = Eintrag.B(c, "5 Lead", "Maximum (meters)", 4f, new ConfigDescription("Safety limit against outliers in the movement data.", new AcceptableValueRange<float>(0.5f, 20f)));
+			VorhaltAbTempo = Eintrag.B(c, "5 Lead", "Only above (m/s)", 1.2f, new ConfigDescription("Below this the assist aims directly. Anyone who is just raising the weapon or turning gets no lead. Walking is about 2 m/s.", new AcceptableValueRange<float>(0f, 5f)));
+			VorhaltRuhe = Eintrag.B(c, "5 Lead", "Smoothing (seconds)", 0.15f, new ConfigDescription("Over how much time the measured speed of the enemy is averaged. Small = follows direction changes immediately, but picks up every twitch. Large = calm, lags on sidesteps. NOTE, meaning changed: the old setting \"Beruhigung\" was a share per FRAME and therefore acted completely differently at 144 fps than at 60. The old entry in the cfg is no longer read.", new AcceptableValueRange<float>(0.02f, 1f)));
+			VorhaltRuheMin = Eintrag.B(c, "5 Lead", "Minimum smoothing (seconds)", 0.06f,
 				new ConfigDescription(
 					"Lower bound for the smoothing of the target speed, "
 					+ "independent of the flight time. Up close the flight time is so "
@@ -893,7 +897,7 @@ namespace Zielhilfe
 					+ "at about 0.05 s it was -4 cm. The probe in the log "
 					+ "is the yardstick - it should be as close to 0 as possible.",
 					new AcceptableValueRange<float>(0f, 0.5f)));
-			Bildvorhalt = c.Bind("5 Lead", "Compensate frame delay (frames)", 1f,
+			Bildvorhalt = Eintrag.B(c, "5 Lead", "Compensate frame delay (frames)", 1f,
 				new ConfigDescription(
 					"Compensates your OWN delay, not the bullet's flight. The aim point "
 					+ "is calculated at the start of a frame; by the time the shot is fired the "
@@ -902,10 +906,10 @@ namespace Zielhilfe
 					+ "remained in close combat. 1 = lead by one frame, 0 = off. At a high frame rate "
 					+ "it acts weaker by itself, because a frame is then shorter.",
 					new AcceptableValueRange<float>(0f, 3f)));
-			NurWaagerecht = c.Bind("5 Lead", "Horizontal movement only", defaultValue: true, "On = the up and down while walking is ignored.");
-			RueckstossAusgleich = c.Bind("9 Legacy Modes - Recoil", "Compensate recoil", 0.8f, Alt(new ConfigDescription("The bullet leaves the MUZZLE, not the camera - confirmed in the game code (WeaponDirection). With recoil the muzzle climbs away from the camera: the view direction sits cleanly on the head, the burst still goes over it. With single fire this is barely noticeable, with sustained fire it grows with every shot. Here the view direction is shifted so that the MUZZLE points at the target. 1.0 = compensate fully, 0 = off. Only acts while aiming down sights; when hip-firing the weapon is permanently skewed, that is not recoil but the stance.", new AcceptableValueRange<float>(0f, 1f))));
-			RueckstossRuhe = c.Bind("9 Legacy Modes - Recoil", "Smoothing (seconds)", 0.04f, Alt(new ConfigDescription("Smooths the jitter of the weapon animation so that it does not carry through one to one into the view direction. Small = follows the recoil immediately, large = calmer, lags on fast bursts.", new AcceptableValueRange<float>(0.005f, 0.3f))));
-			MuendungNachregeln = c.Bind("9 Legacy Modes - Recoil", "Correct muzzle", defaultValue: true, Alt(new ConfigDescription(
+			NurWaagerecht = Eintrag.B(c, "5 Lead", "Horizontal movement only", defaultValue: true, "On = the up and down while walking is ignored.");
+			RueckstossAusgleich = Eintrag.B(c, "9 Legacy Modes - Recoil", "Compensate recoil", 0.8f, Alt(new ConfigDescription("The bullet leaves the MUZZLE, not the camera - confirmed in the game code (WeaponDirection). With recoil the muzzle climbs away from the camera: the view direction sits cleanly on the head, the burst still goes over it. With single fire this is barely noticeable, with sustained fire it grows with every shot. Here the view direction is shifted so that the MUZZLE points at the target. 1.0 = compensate fully, 0 = off. Only acts while aiming down sights; when hip-firing the weapon is permanently skewed, that is not recoil but the stance.", new AcceptableValueRange<float>(0f, 1f))));
+			RueckstossRuhe = Eintrag.B(c, "9 Legacy Modes - Recoil", "Smoothing (seconds)", 0.04f, Alt(new ConfigDescription("Smooths the jitter of the weapon animation so that it does not carry through one to one into the view direction. Small = follows the recoil immediately, large = calmer, lags on fast bursts.", new AcceptableValueRange<float>(0.005f, 0.3f))));
+			MuendungNachregeln = Eintrag.B(c, "9 Legacy Modes - Recoil", "Correct muzzle", defaultValue: true, Alt(new ConfigDescription(
 					"THE answer to \"once it has locked on it no longer readjusts\". "
 					+ "Previously the offset between camera and muzzle was calculated "
 					+ "FORWARD and subtracted - open-loop control. In the log of the raid of 18.09.2026 it removed "
@@ -915,19 +919,19 @@ namespace Zielhilfe
 					+ "really points is measured instead, and the remainder is corrected away cumulatively - "
 					+ "until it is gone. That is the difference between "
 					+ "\"calculated correctly once\" and \"keeps correcting until it sits\".")));
-			MuendungVerstaerkung = c.Bind("9 Legacy Modes - Recoil", "Correction speed", 6f, Alt(new ConfigDescription(
+			MuendungVerstaerkung = Eintrag.B(c, "9 Legacy Modes - Recoil", "Correction speed", 6f, Alt(new ConfigDescription(
 					"How fast the remainder is corrected away, in 1/second. 6 means "
 					+ "roughly: after just under a second the remaining error is gone. "
 					+ "Chosen too high the control starts to oscillate (the weapon "
 					+ "lags when turning, that is a feedback loop) - then "
 					+ "the aim point trembles, and the value should go down.",
 					new AcceptableValueRange<float>(0f, 30f))));
-			MuendungHoechstens = c.Bind("9 Legacy Modes - Recoil", "Correction maximum (degrees)", 2f, Alt(new ConfigDescription(
+			MuendungHoechstens = Eintrag.B(c, "9 Legacy Modes - Recoil", "Correction maximum (degrees)", 2f, Alt(new ConfigDescription(
 					"Safety cap for the sum. Prevents the control from "
 					+ "winding up further and further on a continuously wrong measurement.",
 					new AcceptableValueRange<float>(0.1f, 8f))));
-			RueckstossHoechstens = c.Bind("9 Legacy Modes - Recoil", "Maximum (degrees)", 3f, Alt(new ConfigDescription("Safety cap. Tarkov's weapon lags behind when turning - if we turn against the offset, it lags further and the offset grows. This feedback is weak enough to stay stable with a strength below 1; the cap secures the rest.", new AcceptableValueRange<float>(0.5f, 10f))));
-			HuefteAusgleich = c.Bind("9 Legacy Modes - Recoil", "Compensate from hip", 1f, Alt(new ConfigDescription(
+			RueckstossHoechstens = Eintrag.B(c, "9 Legacy Modes - Recoil", "Maximum (degrees)", 3f, Alt(new ConfigDescription("Safety cap. Tarkov's weapon lags behind when turning - if we turn against the offset, it lags further and the offset grows. This feedback is weak enough to stay stable with a strength below 1; the cap secures the rest.", new AcceptableValueRange<float>(0.5f, 10f))));
+			HuefteAusgleich = Eintrag.B(c, "9 Legacy Modes - Recoil", "Compensate from hip", 1f, Alt(new ConfigDescription(
 					"There used to be no compensation here at all: when hip-firing the weapon stands "
 					+ "PERMANENTLY skewed relative to the camera, and a compensation turns the view direction "
 					+ "away accordingly. It was measured, though, that the camera sits cleanly "
@@ -935,7 +939,7 @@ namespace Zielhilfe
 					+ "about 90 cm. The shot surely misses. 0 = as before, "
 					+ "1 = compensate fully.",
 					new AcceptableValueRange<float>(0f, 1f))));
-			HuefteHoechstens = c.Bind("9 Legacy Modes - Recoil", "Hip maximum (degrees)", 8f, Alt(new ConfigDescription(
+			HuefteHoechstens = Eintrag.B(c, "9 Legacy Modes - Recoil", "Hip maximum (degrees)", 8f, Alt(new ConfigDescription(
 					"Own upper limit for hip compensation. It is larger than the one when "
 					+ "aiming down sights, because the stance offset is larger there: measured "
 					+ "median 3 degrees, in a tenth of the cases above 14. If the offset exceeds "
@@ -943,12 +947,22 @@ namespace Zielhilfe
 					+ "then the weapon is lowered or just being raised, and a "
 					+ "compensation would only work against the animation.",
 					new AcceptableValueRange<float>(0f, 20f))));
-			VorhaltDaempfung = c.Bind("5 Lead", "Reduce on direction change", 0.7f, new ConfigDescription("The lead assumes the enemy keeps walking straight. If he sidesteps, the assist aims where he WOULD have been - and that can be further off than no lead at all. Here it is measured how strongly he is currently changing direction, and the lead is reduced accordingly. 0 = off (always full lead), 1 = on a hard sidestep the lead drops out completely.", new AcceptableValueRange<float>(0f, 1f)));
+			VorhaltDaempfung = Eintrag.B(c, "5 Lead", "Reduce on direction change", 0.7f, new ConfigDescription("The lead assumes the enemy keeps walking straight. If he sidesteps, the assist aims where he WOULD have been - and that can be further off than no lead at all. Here it is measured how strongly he is currently changing direction, and the lead is reduced accordingly. 0 = off (always full lead), 1 = on a hard sidestep the lead drops out completely.", new AcceptableValueRange<float>(0f, 1f)));
 
 			EspEinstellungen.Anlegen(c);
 
+			// "7 AFK Guard" (ab 1.4.0): Notfall-Pause mit automatischer Verteidigung (AfkWache.cs).
+			AfkEinstellungen.Anlegen(c);
+
+			// "0 Quick Setup" (ab 1.3.0): fasst die wichtigsten Einstellungen zusammen.
+			QuickSetup.Anlegen(c, vorher);
+
 			// Einmalig: Werte aus den alten deutschen Namen uebernehmen.
 			Migriert = Einstellungsumzug.Uebernehmen(c, vorher);
+
+			// Erst NACH der Uebernahme: jetzt stehen die Werte des Nutzers in den
+			// Eintraegen, und nur gegen die laesst sich "Strength" ermitteln.
+			QuickSetup.NachUebernahme(c, vorher);
 		}
 
 		/// <summary>Wie viele Einstellungen beim Start aus den deutschen Namen uebernommen wurden.</summary>
@@ -1066,7 +1080,7 @@ namespace Zielhilfe
 			return Mathf.Lerp(_zeitBisMeter[num], _zeitBisMeter[num + 1], t);
 		}
 	}
-	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.2.0")]
+	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.0")]
 	public class MainPlugin : BaseUnityPlugin
 	{
 		private readonly Zielsuche _suche = new Zielsuche();
@@ -1120,6 +1134,7 @@ namespace Zielhilfe
 		{
 			Einstellungen.Anlegen(base.Config);
 			base.gameObject.AddComponent<EnemyEsp>();
+			base.gameObject.AddComponent<AfkWache>();
 			if (Einstellungen.Migriert > 0)
 			{
 				base.Logger.LogInfo("[Zielhilfe] Migrated " + Einstellungen.Migriert + " settings from the German names");
@@ -1147,6 +1162,7 @@ namespace Zielhilfe
 		private void Update()
 		{
 			HilfeAktiv = false;
+			QuickSetup.Tick();
 			try
 			{
 				bool flag = Einstellungen.Diagnose.Value && Time.time - _letzteDiagnose > Einstellungen.DiagnoseTakt.Value;
@@ -1161,6 +1177,19 @@ namespace Zielhilfe
 						_letzteDiagnose = Time.time;
 						base.Logger.LogInfo("[Zielhilfe] no raid active");
 					}
+					return;
+				}
+				if (AfkWache.Aktiv)
+				{
+					// Die AFK-Wache zielt und schiesst selbst (AfkWache.cs). Die
+					// normale Hilfe ruht so lange ganz - sonst zoegen zwei Regler
+					// an derselben Blickrichtung. Fuer das ESP ("nur mit Zielhilfe")
+					// zaehlt die Wache als aktive Hilfe.
+					HilfeAktiv = true;
+					SoftAim.Vergessen();
+					_suche.Vergessen();
+					_nachfuehrung.Vergessen();
+					_letztesZiel = null;
 					return;
 				}
 				bool maus = Einstellungen.Art.Value == Zielmodus.SoftAimMouse;
@@ -1253,48 +1282,7 @@ namespace Zielhilfe
 					// Erst jetzt, fuer das EINE gewaehlte Ziel, die Kopfbox suchen,
 					// die gerade frei liegt. Im Suchlauf waere das acht Strahlen
 					// pro Gegner und Bild.
-					bool kopfZu = false;
-					bool nachPanzerung = maus && Einstellungen.ZoneNachPanzerung.Value;
-					Knochen stelle = Einstellungen.Ziel.Value;
-					SoftAim.ZonenGrund = "body part";
-					if (nachPanzerung)
-					{
-						// Ersetzt fuer diese Art die feste Koerperstelle samt
-						// Kopfbox- und Brust-Ausweichlogik: dieselbe Sichtpruefung
-						// je Kopfbox, nur in der Reihenfolge der Panzerung, und eine
-						// verdeckte Kopfzone faellt weg.
-						stelle = Panzerung.Waehlen(ich, ziel, kamera, out zielpunkt, out kopfZu);
-					}
-					else if (Einstellungen.Ziel.Value == Knochen.Head
-						&& Einstellungen.Kopfziel.Value == Kopfbox.Visible
-						&& Zielpunkt.SichtbareBox(ziel, kamera, out var boxmitte, out var boxname))
-					{
-						// Keine einzige Kopfbox frei? Dann steht Deckung davor.
-						// Auf den Kopf zu zielen heisst dann, in die Deckung zu
-						// schiessen - die Brust ist groesser und oft daneben frei.
-						if (boxname.EndsWith("(covered)")
-							&& Einstellungen.BrustAusweichen != null
-							&& Einstellungen.BrustAusweichen.Value)
-						{
-							zielpunkt = Zielpunkt.Koerper(ziel);
-							Zielpunkt.LetzteWahl = "Chest(head covered)";
-							kopfZu = true;
-						}
-						else
-						{
-							zielpunkt = boxmitte;
-							Zielpunkt.LetzteWahl = boxname
-								+ $"+{zielpunkt.y - ziel.Position.y:0.00}m";
-						}
-					}
-					else
-					{
-						Zielpunkt.LetzteWahl = "";
-					}
-					if (!nachPanzerung && kopfZu)
-					{
-						stelle = Knochen.Chest;
-					}
+					Knochen stelle = PunktWaehlen(ich, ziel, kamera, maus && Einstellungen.ZoneNachPanzerung.Value, ref zielpunkt, out bool kopfZu);
 					Vector3 vorVorhalt = zielpunkt;
 					if (maus)
 					{
@@ -1336,6 +1324,59 @@ namespace Zielhilfe
 			{
 				base.Logger.LogWarning("[Zielhilfe] " + ex.Message);
 			}
+		}
+
+		/// <summary>
+		/// Waehlt fuer das EINE Ziel die Stelle und den Punkt (vor Vorhalt/Fall):
+		/// nach Panzerung (Panzerung.Waehlen) oder die eingestellte Koerperstelle
+		/// samt freier Kopfbox und Brust-Ausweichen. zielpunkt kommt mit dem Punkt
+		/// der Zielsuche (Zielpunkt.Fuer) herein und bleibt, wenn nichts Besseres
+		/// gefunden wird. Gemeinsam fuer die Zielhilfe und die AFK-Wache (ab 1.4.0).
+		/// </summary>
+		internal static Knochen PunktWaehlen(Player ich, Player ziel, Camera kamera, bool nachPanzerung, ref Vector3 zielpunkt, out bool kopfZu)
+		{
+			kopfZu = false;
+			Knochen stelle = Einstellungen.Ziel.Value;
+			SoftAim.ZonenGrund = "body part";
+			if (nachPanzerung)
+			{
+				// Ersetzt fuer diese Art die feste Koerperstelle samt
+				// Kopfbox- und Brust-Ausweichlogik: dieselbe Sichtpruefung
+				// je Kopfbox, nur in der Reihenfolge der Panzerung, und eine
+				// verdeckte Kopfzone faellt weg.
+				stelle = Panzerung.Waehlen(ich, ziel, kamera, out zielpunkt, out kopfZu);
+			}
+			else if (Einstellungen.Ziel.Value == Knochen.Head
+				&& Einstellungen.Kopfziel.Value == Kopfbox.Visible
+				&& Zielpunkt.SichtbareBox(ziel, kamera, out var boxmitte, out var boxname))
+			{
+				// Keine einzige Kopfbox frei? Dann steht Deckung davor.
+				// Auf den Kopf zu zielen heisst dann, in die Deckung zu
+				// schiessen - die Brust ist groesser und oft daneben frei.
+				if (boxname.EndsWith("(covered)")
+					&& Einstellungen.BrustAusweichen != null
+					&& Einstellungen.BrustAusweichen.Value)
+				{
+					zielpunkt = Zielpunkt.Koerper(ziel);
+					Zielpunkt.LetzteWahl = "Chest(head covered)";
+					kopfZu = true;
+				}
+				else
+				{
+					zielpunkt = boxmitte;
+					Zielpunkt.LetzteWahl = boxname
+						+ $"+{zielpunkt.y - ziel.Position.y:0.00}m";
+				}
+			}
+			else
+			{
+				Zielpunkt.LetzteWahl = "";
+			}
+			if (!nachPanzerung && kopfZu)
+			{
+				stelle = Knochen.Chest;
+			}
+			return stelle;
 		}
 
 		private readonly Zone[] _zonen = new Zone[4];
@@ -6098,7 +6139,7 @@ namespace Zielhilfe
 				{
 					Aufzeichnung.MausRoh(axes[2], axes[3], __instance._xDirection, __instance._yDirection);
 				}
-				if (!Einstellungen.An.Value || Einstellungen.Art.Value != Zielmodus.SoftAimMouse)
+				if (!Einstellungen.An.Value || Einstellungen.Art.Value != Zielmodus.SoftAimMouse || AfkWache.Aktiv)
 				{
 					return;
 				}
@@ -6245,6 +6286,8 @@ namespace Zielhilfe
 				object schuetze = damageInfo.Player?.iPlayer;
 				if ((object)opfer == ich)
 				{
+					// AFK-Wache: wer mich trifft, wird zum Angreifer.
+					AfkWache.Getroffen(schuetze as Player);
 					Aufzeichnung.GetroffenWorden(ich, __instance, schuetze as Player);
 					return;
 				}
@@ -6431,6 +6474,12 @@ namespace Zielhilfe
 		{
 			try
 			{
+				// AFK-Wache: fremde Kugeln, die knapp an mir vorbeigehen
+				// (Beinahetreffer), machen den Schuetzen ebenfalls zum Angreifer.
+				if (AfkWache.Aktiv)
+				{
+					AfkWache.FremdeKugel(__instance, shotPosition, shotDirection);
+				}
 				if (!Erwartet)
 				{
 					return;

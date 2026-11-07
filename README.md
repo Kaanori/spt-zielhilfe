@@ -7,7 +7,10 @@ A configurable single-player aim assist for SPT 4.1.6 (BepInEx client plugin): i
 > - Use it **only in offline SPT raids against AI bots**.
 > - **Never** use it in live Escape from Tarkov or on any server with real players. That is cheating against real people and will get your account banned.
 > - The mod reads enemy positions and armor, so it behaves like an aimbot-lite by design. The optional Enemy ESP (off by default) shows enemies through walls. The default "Soft Aim" never moves the camera on its own; it only bends the mouse movement you make yourself (see below).
+> - The optional **AFK guard** (since 1.4.0, only active after you press its key) is a fully automated defense mode: it aims and fires on its own. Offline single player against bots only.
 
+> **Upgrading to 1.3.0:** the F12 menu got a new first section, "0 Quick Setup" (see below). **None of your existing values are touched.** On the first start the mod only *reads* your settings: if they match Light, Medium or Strong exactly it shows that, otherwise "Strength" shows Custom. Your "Enabled" and Enemy ESP switches moved into the new section with their values.
+>
 > **Upgrading from 1.1.0:** version 1.2.0 renamed all settings to English. Your existing values are migrated automatically on the first start (the BepInEx log shows "Migrated N settings from the German names"); nothing needs to be re-entered. The combat recording folder is now `BepInEx/Zielhilfe-Recordings` (old `Zielhilfe-Aufzeichnung` folders are left untouched).
 
 ![Raid statistics with Zielhilfe: K/D 160.5, 297 headshots, longest hit 440 m](https://raw.githubusercontent.com/Kaanori/spt-zielhilfe/main/docs/stats.jpg)
@@ -33,7 +36,7 @@ bug, please open an [issue](https://github.com/Kaanori/spt-zielhilfe/issues).
 
 ## Installation
 
-1. Download `Zielhilfe-1.2.0.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
+1. Download `Zielhilfe-1.4.0.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
 2. Extract it **into your SPT game folder** (the folder that contains `EscapeFromTarkov.exe`).
    The ZIP already has the right layout; the mod ends up in `BepInEx/plugins/`.
    On Windows, make sure "Extract All" does not add an extra subfolder.
@@ -88,7 +91,7 @@ See "Line of sight" and "Shoot-through handling" above. Hit-point checks use the
 
 ### Enemy ESP (optional, off by default)
 
-An overlay that marks enemies on screen, including through walls. It is **off by default**; enable it in section "6 ESP" or with the toggle hotkey (default Insert). Offline single-player only.
+An overlay that marks enemies on screen, including through walls. It is **off by default**; enable it with "Enemy ESP" in section "0 Quick Setup" or with the toggle hotkey (default Insert). Offline single-player only.
 
 - **Per-type filters.** PMC USEC, PMC BEAR, Scav, Boss, Guard/Follower, Raider, Rogue, Cultist, Other - each can be shown or hidden and has its own colour. With "Hostile enemies only" (default) the aim assist's hostility logic is used, so allied/friendly bots are left out exactly as for the aim assist. Bosses are labelled with their name.
 - **Styles.** Full box, corner box or a small marker; optional type/name label, distance, vertical health bar (from the bot's health controller) and a head dot. Labels and line thickness scale with the screen height (identical look at 1080p and 4K).
@@ -97,6 +100,22 @@ An overlay that marks enemies on screen, including through walls. It is **off by
 - **Only while the aim assist is active** (optional): the ESP shows only while the assist is active, i.e. while you hold its hotkey when "When active" is HoldKey.
 - **Correct placement.** It draws with the camera that renders the picture (`Camera.main`, "FPS Camera"), converts through viewport coordinates (0..1) and multiplies by the window size, so it stays correct with resolution scaling and FSR upscaling (e.g. render 2560x1440 -> output 3840x2160); it uses the non-jittered projection so upscaler jitter does not shake the boxes. It is hidden in the inventory/menus, after death, in third person and - by default - while aiming through a magnifying scope (the lens image has its own camera and field of view, so markers could not line up there; iron sights and red dots are fine).
 - **Cost.** No per-frame allocations (entries, strings and ray buffers are reused); the enemy list refreshes 4 times per second. Estimated about 0.05-0.3 ms per frame for a typical raid (5-30 bots in range); when disabled only a key check runs.
+
+### AFK guard (emergency break, since 1.4.0)
+
+An automated defense mode for single player, for when you have to leave the keyboard for a moment in the middle of a raid. Find a hidden spot, press **Pause** (Pause/Break key) and walk away; press **Pause** again when you are back. Nothing happens until you press the key.
+
+While it is on:
+
+- **You stay where you are.** The guard never moves your character; it only turns the view and works the trigger. You can still use your keys, but the guard keeps aiming until you switch it off.
+- **It shoots back at attackers.** Anyone who hits you, or whose bullet passes within about 1.2 m of you, counts as an attacker for 30 seconds (configurable) and is engaged at any distance up to "2 Target / Range in meters" - even a bot the game does not list as hostile, and even if its type is excluded in "3 Exclusions". Hits are remembered even while the guard is off, so switching it on right after being shot still knows the shooter.
+- **It shoots every hostile bot within 25 m** (configurable) that has a clear line of fire. Hostility and the exclusions in "3 Exclusions" work exactly as for the aim assist.
+- **Priority:** attackers first, then the nearest. It keeps its current target until another one is clearly better (5 m closer, or an attacker).
+- **Aiming** uses the same aim point as the aim assist (zone by armor or your "Aim at" choice, free head box, lead and bullet drop) and lays the real bullet line onto it. The view turns smoothly, capped by "Max turn rate".
+- **Firing** only happens while the bullet line is within "Aim tolerance" of the aim point: full-auto weapons fire bursts ("Burst length", "Burst pause"), semi-auto and bolt-action weapons fire single shots. It aims down sights while engaging (optional) and lowers the weapon 3 s after the last target.
+- **Reloading:** when the weapon is empty it reloads exactly like your reload key (a magazine from your rig/pockets). If nothing can be loaded it stops firing and shows "AFK guard: out of ammo".
+- **It always lets go of the trigger** when you switch it off, when the target is lost, while an inventory/menu is open or the game is paused, and it switches itself off when you die or the raid ends.
+- A notification appears when it switches on/off or needs you, and an orange status line at the top of the screen shows what it is doing (both can be turned off with "Show notice"). The normal aim assist pauses while the guard runs.
 
 ### Hotkey
 
@@ -108,19 +127,53 @@ One configurable key (default Left Alt) used only when "When active" is set to h
 |---|---|---|
 | "Hotkey" (F12 menu) | Left Alt | Hold or toggle the assist, depending on "When active" (Soft Aim) or "When it pulls" (legacy modes). Not needed in the default always-on mode. |
 | "Toggle hotkey" (section 6 ESP) | Insert | Switches the Enemy ESP on/off during a raid. |
-| F12 (BepInEx Configuration Manager) | - | Opens the settings; enable "Advanced settings" to see the legacy sections. |
+| "Toggle hotkey" (section 7 AFK Guard) | Pause | Switches the AFK guard (automatic defense while you are away) on/off during a raid. Pause is not used by the game or by the other mods in this pack (F9 and End are). |
+| F12 (BepInEx Configuration Manager) | - | Opens the settings, starting with "0 Quick Setup"; tick "Show all settings" there for everything, and enable "Advanced settings" (in F12) to see the legacy sections. |
 
-There are no other hotkeys.  The mod also needs no extra overlay.
+There are no other hotkeys. The mod also needs no extra overlay.
 
 ## Settings
+
+### Quick Setup (start here)
+
+The first section of the F12 menu, "0 Quick Setup", is all most people need:
+
+| Entry | What it does | Default |
+|---|---|---|
+| Enabled | Master switch. Off = the mod does nothing. | on |
+| Strength | **Light / Medium / Strong** set a matching group of values in sections 1b and 1c-1h. **Custom** = your own values; it is selected automatically as soon as you change one of those values by hand (choosing Custom yourself changes nothing). | Medium |
+| Aim at | **Smart** = head or torso, whichever is likely to hurt more given the enemy's armor. **Head** = head (torso only when the head is covered). **Body** = torso. **Custom** = your own zone settings, selected automatically when you change them by hand. | Smart |
+| Enemy ESP | Boxes and labels for enemies, also through walls. Toggle during a raid with the hotkey in "6 ESP" (default Insert). | off |
+| Show all settings | Off = F12 shows only this section plus a few essentials (Hotkey, When active, ADS only, recoil compensation, Range in meters, the three exclusions, ESP toggle hotkey and maximum distance, AFK guard hotkey). On = every setting. Nothing is reset either way. After ticking it the list refreshes by itself; if it does not, close and reopen F12. | off on a fresh install, **on** for existing installations |
+
+What the three Strength levels set (Medium = the values the mod always shipped with):
+
+| Setting (section 1b) | Light | Medium | Strong |
+|---|---|---|---|
+| Radius in meters from zone edge | 0.5 | 0.75 | 1.0 |
+| Pull strength (weight) | 0.3 | 0.5 | 0.75 |
+| Friction | 0.15 | 0.3 | 0.45 |
+| Hold without mouse (magnet), max degrees per second | 4 | 10 | 14 |
+| Target tracking share | 0.4 | 0.7 | 0.9 |
+| Capture boost maximum degrees per second | 20 | 40 | 60 |
+| Maximum correction (degrees per second) | 60 | 120 | 200 |
+| 1f DMR and Sniper: radius / pull / friction / magnet | 0.35 / 0.3 / 0.2 / 4 | 0.5 / 0.5 / 0.4 / 10 | 0.7 / 0.75 / 0.55 / 14 |
+| 1g Shotgun: radius / pull / friction / magnet | 0.7 / 0.3 / 0.15 / 4 | 1.0 / 0.5 / 0.3 / 10 | 1.4 / 0.75 / 0.45 / 14 |
+
+Pistol, SMG, Assault Rifle and Machine Gun use the general values ("Use own values" off); DMR/Sniper and Shotgun keep their own values switched on, as they always did, scaled with the level. Target tracking and capture boost of those two classes follow the general ones. Even "Strong" stays mouse-driven: the assist bends your own movement and never aims for you.
+
+"Aim at" writes: Smart = Choose zone by armor on, Body part Head, zones Head and Torso allowed; Head = armor choice off, Body part Head, Head and Torso allowed; Body = armor choice off, Body part Chest, only Torso allowed (Pelvis and Legs stay a last resort in all three).
+
+If you edit the cfg file by hand while the game is closed, a Strength/Aim-at value that no longer matches your numbers is corrected to what the numbers say (your numbers are never changed).
 
 Values were taken from the source. Entry names are shown exactly as in the F12 menu.
 
 ### 1 General
 
+The master switch "Enabled" now lives in "0 Quick Setup".
+
 | Entry | Meaning | Default | Range |
 |---|---|---|---|
-| Enabled | Master switch. Off = the mod does nothing. | on | on/off |
 | Hotkey | Key or mouse button for hold/toggle activation. | LeftAlt | any KeyCode |
 
 ### 1b Soft Aim (mouse) (main section)
@@ -215,10 +268,11 @@ Sections: "1c Class Pistol", "1d Class SMG", "1e Class Assault Rifle and Carbine
 
 ### 6 ESP (enemy overlay, off by default)
 
+The on/off switch "Enemy ESP" now lives in "0 Quick Setup".
+
 | Entry | Meaning | Default | Range |
 |---|---|---|---|
-| Enabled | Master switch for the Enemy ESP. | off | on/off |
-| Toggle hotkey | Toggles "Enabled" during the raid. None = no hotkey. | Insert | any KeyCode |
+| Toggle hotkey | Toggles "Enemy ESP" (in "0 Quick Setup") during the raid. None = no hotkey. | Insert | any KeyCode |
 | Maximum distance (m) | Enemies farther away are not drawn. | 300 | 10-1500 |
 | Hostile enemies only | Only bots hostile to you (same logic as the aim assist). Off = every living bot. | on | on/off |
 | Only while the aim assist is active | Draw only while the aim assist is active (e.g. hotkey held with HoldKey). | off | on/off |
@@ -244,6 +298,23 @@ Sections: "1c Class Pistol", "1d Class SMG", "1e Class Assault Rifle and Carbine
 | Line thickness (pixels at 1080p) | Scaled with the screen height. | 1.5 | 1-6 |
 | Marker size (% of screen height) | Size of the small marker / head dot. | 0.9 | 0.3-3 |
 | Color: PMC USEC / PMC BEAR / Scav / Boss / Guard / Follower / Raider / Rogue / Cultist / Other | One colour per enemy type. | blue / red / yellow / magenta / orange / cyan / violet / lime / grey | colour |
+
+### 7 AFK Guard (automatic defense, only after pressing its key)
+
+Only "Toggle hotkey" is shown while "Show all settings" is off.
+
+| Entry | Meaning | Default | Range |
+|---|---|---|---|
+| Toggle hotkey | Press once in a raid to switch the guard on, again to switch it off (the only off switch besides death/raid end). None = disabled. | Pause | any KeyCode |
+| Range (m) | Hostile bots closer than this are engaged even if they have not attacked you. | 25 | 5-150 |
+| Remember attacker (s) | How long someone who hit you or shot close past you stays an attacker. | 30 | 0-300 |
+| Max turn rate (deg/s) | How fast the view may turn towards a target. | 360 | 30-1080 |
+| Aim tolerance (cm) | Fires only while the bullet line is this close to the aim point (at the target's distance). A full-auto burst stops when it drifts off more than 3x this (at least 1.5 degrees). | 10 | 2-50 |
+| Burst length (s) | Full-auto/burst weapons: trigger time per burst. | 0.3 | 0.05-2 |
+| Burst pause (s) | Pause after a burst, or between two single shots. | 0.25 | 0.05-2 |
+| Aim down sights | Aim down sights while engaging. | on | on/off |
+| Auto reload | Reload by itself when empty (like the reload key). Off = only a notice. | on | on/off |
+| Show notice | Game notifications and the status line at the top of the screen. | on | on/off |
 
 ### 8 Diagnostics (diagnostics, off by default)
 
@@ -312,6 +383,7 @@ Both are **off by default**.
 - Very low frame rates make the magnet unstable (very short catch-up times become jittery below about 30 fps).
 - Armor-based zone choice depends on the game's armor data and the worn gear; heavily modded armor or ammunition systems may give unexpected zone choices.
 - Grenade launchers are not supported.
+- **AFK guard limits:** it does not move, take cover, heal, throw grenades, switch weapons or fix weapon malfunctions (it stops firing and shows "weapon malfunction - fix it yourself"). It only sees bots that are in its range or that shot at you; an enemy sneaking up from behind beyond the range is only noticed once it shoots. A bot whose bullet passes close to you while shooting at someone else also counts as an attacker. Being hit by explosions or melee counts as a hit from that bot. It cannot help if your position is bad - pick a corner with few approaches.
 - Fences, foliage and other deviating materials can still deflect bullets even when counted as passable.
 - The JSON field names inside the combat recordings are German (see `AUFZEICHNUNG-FORMAT.md` in the source); everything else is English.
 
