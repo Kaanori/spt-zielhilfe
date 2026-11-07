@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net471</TargetFramework>
+    <AssemblyName>Zielhilfe</AssemblyName>
+    <RootNamespace>Zielhilfe</RootNamespace>
+    <Version>1.1.0</Version>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AssemblyTitle>Zielhilfe</AssemblyTitle>
+    <Description>Eigene Zielhilfe - unabhaengig vom Cheat-Menue</Description>
+    <GameDir Condition="'$(GameDir)' == ''">/mnt/nvmegames/Games/SPT-416</GameDir>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Alles liegt schon im Spiel - nichts davon mitkopieren (Private=false). -->
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Comfort"><HintPath>$(GameDir)/EscapeFromTarkov_Data/Managed/Comfort.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx"><HintPath>$(GameDir)/BepInEx/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(GameDir)/BepInEx/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+
+  <!-- Nach dem Bauen direkt ins Spiel kopieren.
+       ACHTUNG: nach BepInEx/plugins, NICHT nach scripts. Der Versuch mit
+       ScriptEngine (Live-Nachladen) ist gescheitert - es meldete den
+       Ladevorgang, erzeugte das Plugin aber nicht, und unter F12 tauchte
+       es nicht mehr auf. Siehe LIESMICH. -->
+  <!-- Nur mit -p:Installieren=true (bauen.sh mit Schalter installieren) ins Spiel kopieren. -->
+  <Target Name="InsSpiel" AfterTargets="Build" Condition="'$(Installieren)' == 'true'">
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(GameDir)/BepInEx/plugins"
+          Condition="Exists('$(GameDir)/BepInEx/plugins')" />
+    <Message Importance="high" Text="-> $(GameDir)/BepInEx/plugins/Zielhilfe.dll (Spiel neu starten)" />
+  </Target>
+
+</Project>
