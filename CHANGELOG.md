@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.2 — 2026-11-08
+
+- **ESP: boxes were offset (too low / towards the bottom-left) with upscalers.** FSR (e.g. FSR4Bridge), DLSS mods and the game's own upscaling shrink `camera.rect` to the render share (e.g. 0.59 × 0.59) and then stretch the image to the full screen. The ESP used that shrunk rect and squeezed all boxes into the lower-left part of the screen. It now detects a uniformly shrunk rect anchored at 0/0 and maps to the full screen; real letterboxing still works as before.
+- ESP draws with the identity `GUI.matrix` (another mod may leave it scaled) and writes one diagnostic line at the first draw (screen and camera resolution, camera rect, FOV, GUI matrix) to the BepInEx log, so setups that still misplace boxes can be identified from the log.
+- **Aim assist: the hold magnet let go while the mouse was still.** With a target crossing the view (especially through magnified scopes) the "magnet yields to own mouse" check compared the movement *relative to the target*, so a still hand counted as "steering away" and the line drifted behind the head. The magnet now only yields when your own mouse actually moves faster than the threshold.
+
+## 1.4.1 — 2026-11-07
+
+Fixes "hopping" of the aim point and of the target.
+
+- **Aim point stays put (aim assist and AFK guard).** With a covered head, "Fall back to chest" used to flip the aim point between head and chest whenever the line of sight flickered at a cover edge. Head to chest now switches only after the head was covered for 0.2 s in a row, and back to the head only after it was free for 0.35 s in a row. The chosen head box (HeadCommon / Eyes / Jaw ...) is held as long as it stays free and is only re-chosen when it is blocked.
+- **Soft Aim by mouse: zone visibility is debounced.** A hit zone (head, torso, pelvis, legs) now counts as covered only after 0.25 s without a free line and as free again after 0.3 s, so the pull no longer swaps between head and torso frame by frame.
+- **Target no longer dropped for a moment of cover.** The held target of the aim assist stays a candidate for 0.5 s after it disappears behind an edge, instead of switching to the next enemy and back.
+- **AFK guard: sticky target.** A target is kept while it lives and is an attacker or in range; it is only given up after the line of fire has been blocked for longer than the new setting **Keep target while hidden (s)** (default 0.75). An attacker is never swapped for a non-attacker. Switching happens only when a new attacker appears while the current target is not one, or when another target of the same kind is less than half as far away. A target may drift 10 % beyond the range before it is dropped.
+- **AFK guard: bursts stay on one point.** While the trigger is held the head/chest choice is frozen, and when the head is blocked the guard keeps the chest until the head is free again for a while.
+- Tests: new offline tests for target priority (the fight from the report), head box hysteresis and zone debouncing.
+
 ## 1.4.0 — 2026-11-07
 
 - New **AFK guard** (section **"7 AFK Guard"**), an automated defense mode for offline single player: press **Pause** to switch it on before you step away, press it again when you are back. While on, you stay where you are and the mod aims and fires by itself - first at anyone who hit you or shot close past you (remembered for 30 s), then at every hostile bot within 25 m with a clear line of fire. Same aim point as the aim assist (armor-based zone, lead, bullet drop), bursts for full-auto, single shots for semi-auto, automatic reload with the game's own reload, optional aiming down sights.

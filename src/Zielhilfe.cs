@@ -1080,7 +1080,7 @@ namespace Zielhilfe
 			return Mathf.Lerp(_zeitBisMeter[num], _zeitBisMeter[num + 1], t);
 		}
 	}
-	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.0")]
+	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.2")]
 	public class MainPlugin : BaseUnityPlugin
 	{
 		private readonly Zielsuche _suche = new Zielsuche();
@@ -1266,6 +1266,7 @@ namespace Zielhilfe
 					Rueckstoss.Vergessen();
 					Rueckstoss.Aufgeben();
 					_letztesZiel = null;
+					ZonenRuhe.Instanz.Vergessen();
 					Zielpunkt.LetzteWahl = "";
 					Zielpunkt.LetzterVersatz = 0f;
 					Zielpunkt.LetzterVersatzGrad = 0f;
@@ -1353,9 +1354,12 @@ namespace Zielhilfe
 				// Keine einzige Kopfbox frei? Dann steht Deckung davor.
 				// Auf den Kopf zu zielen heisst dann, in die Deckung zu
 				// schiessen - die Brust ist groesser und oft daneben frei.
-				if (boxname.EndsWith("(covered)")
-					&& Einstellungen.BrustAusweichen != null
-					&& Einstellungen.BrustAusweichen.Value)
+				// Kopf <-> Brust nicht bei jedem Flackern der Sicht umschalten
+				// (ZonenRuhe, Ruhe.cs): verdeckt erst nach kurzer Zeit auf die
+				// Brust, zurueck erst, wenn der Kopf eine Weile am Stueck frei ist.
+				bool kopfFrei = !boxname.EndsWith("(covered)");
+				bool ausweichen = Einstellungen.BrustAusweichen != null && Einstellungen.BrustAusweichen.Value;
+				if (ZonenRuhe.Instanz.Schritt(ziel, Time.time, kopfFrei, ausweichen))
 				{
 					zielpunkt = Zielpunkt.Koerper(ziel);
 					Zielpunkt.LetzteWahl = "Chest(head covered)";
@@ -1380,6 +1384,16 @@ namespace Zielhilfe
 		}
 
 		private readonly Zone[] _zonen = new Zone[4];
+
+		// Sicht je Zone entprellt (Ruhe.cs): eine Zone gilt erst nach ZoneZuSek
+		// ununterbrochen verdeckt als zu und erst nach ZoneFreiSek ununterbrochen
+		// frei wieder als frei. Ohne das zieht Soft Aim bei flackernder Sicht
+		// bildweise zwischen Kopf und Rumpf hin und her.
+		private readonly Entprellung[] _zonenSicht = { new Entprellung(), new Entprellung(), new Entprellung(), new Entprellung() };
+
+		private const float ZoneZuSek = 0.25f;
+
+		private const float ZoneFreiSek = 0.3f;
 
 		private readonly Collider[][] _kollider = { new Collider[8], new Collider[8], new Collider[8], new Collider[8] };
 
@@ -1424,8 +1438,9 @@ namespace Zielhilfe
 					continue;
 				}
 				Vector3 pruefpunkt = (art == stelle) ? vorVorhalt : (z.Mitte - versatz);
-				bool frei = Zielpunkt.Sichtlinie(start, pruefpunkt, ziel, out var grund, out _, out _);
-				SoftAim.SichtZonen[i] = !frei ? 0 : (grund.StartsWith("through") ? 2 : 1);
+				bool roh = Zielpunkt.Sichtlinie(start, pruefpunkt, ziel, out var grund, out _, out _);
+				bool frei = _zonenSicht[i].Schritt(ziel, Time.time, roh, ZoneFreiSek, ZoneZuSek);
+				SoftAim.SichtZonen[i] = !frei ? 0 : ((roh && grund.StartsWith("through")) ? 2 : 1);
 				if (art == stelle)
 				{
 					SoftAim.SichtGrund = grund;
@@ -3050,18 +3065,14 @@ namespace Zielhilfe
 		/// Laeuft nur fuer das bereits ausgewaehlte Ziel, nicht fuer jeden
 		/// Gegner im Suchlauf - sonst waeren es acht Strahlen pro Gegner und Bild.
 		/// </summary>
-		// Zuletzt gewaehlte freie Kopfbox (Bestaendigkeit).
-		private static Player _halteZiel;
-
-		private static EBodyPartColliderType _halteBox;
-
-		private static bool _halteHat;
+		// Zuletzt gewaehlte freie Kopfbox (Bestaendigkeit): BoxHalter (Ruhe.cs).
 
 		/// <summary>Die gehaltene Kopfbox dieses Gegners, falls vorhanden.</summary>
 		internal static bool GehalteneBox(Player ziel, out EBodyPartColliderType typ)
 		{
-			typ = _halteBox;
-			return _halteHat && (object)_halteZiel == ziel;
+			bool hat = BoxHalter.Instanz.Gehalten(ziel, out int b);
+			typ = (EBodyPartColliderType)b;
+			return hat;
 		}
 
 		public static bool SichtbareBox(Player ziel, Camera kamera,
@@ -3074,15 +3085,16 @@ namespace Zielhilfe
 			// Bestaendigkeit: die zuletzt gewaehlte Box DESSELBEN Gegners bleibt,
 			// solange sie frei liegt - sonst springt der Zielpunkt zwischen
 			// gleich guten Boxen (Eyes/HeadCommon 6-11 cm), sobald eine an der
-			// Deckungskante flackert.
-			if (halten && (object)_halteZiel == ziel && _halteHat && ziel?.PlayerBones?.BodyPartCollidersDictionary != null
-				&& ziel.PlayerBones.BodyPartCollidersDictionary.TryGetValue(_halteBox, out var hb) && hb != null && hb.Collider != null)
+			// Deckungskante flackert. Neu gewaehlt wird erst, wenn sie verdeckt
+			// ist (BoxHalter, Ruhe.cs).
+			if (halten && BoxHalter.Instanz.Gehalten(ziel, out int hid) && ziel?.PlayerBones?.BodyPartCollidersDictionary != null
+				&& ziel.PlayerBones.BodyPartCollidersDictionary.TryGetValue((EBodyPartColliderType)hid, out var hb) && hb != null && hb.Collider != null)
 			{
 				Vector3 hp = BoxPunkt(hb);
 				if (Sichtlinie(SichtStart(Spielzugriff.Ich, kamera), hp, ziel, out _, out _, out _))
 				{
 					mitte = hp;
-					name = _halteBox.ToString();
+					name = ((EBodyPartColliderType)hid).ToString();
 					LetzteBoxlage = name + "=clear (held)";
 					return true;
 				}
@@ -3163,9 +3175,7 @@ namespace Zielhilfe
 						mitte = ziel2;
 						name = boxen[i].ToString();
 						LetzteBoxlage = lage.TrimEnd();
-						_halteZiel = ziel;
-						_halteBox = boxen[i];
-						_halteHat = true;
+						BoxHalter.Instanz.Merke(ziel, (int)boxen[i]);
 						return true;
 					}
 				}
@@ -3609,6 +3619,14 @@ namespace Zielhilfe
 
 		private float _seit;
 
+		// Seit wann das gehaltene Ziel nicht mehr zu sehen ist (-1 = sichtbar).
+		// Ein kurzes Verschwinden hinter einer Kante laesst das Ziel nicht fallen
+		// (sonst springt die Hilfe zum naechsten Gegner und beim Wiederauftauchen
+		// zurueck).
+		private float _verlustSeit = -1f;
+
+		private const float SichtHalteSek = 0.5f;
+
 		public int Gesamt;
 
 		public int RausFraktion;
@@ -3739,8 +3757,25 @@ namespace Zielhilfe
 					&& !Sichtbar(position, vector, item)
 					&& !Sichtbar(position, Zielpunkt.Koerper(item), item))
 				{
-					RausSicht++;
-					continue;
+					if (item != _gehalten)
+					{
+						RausSicht++;
+						continue;
+					}
+					if (_verlustSeit < 0f)
+					{
+						_verlustSeit = Time.time;
+					}
+					if (Time.time - _verlustSeit > SichtHalteSek)
+					{
+						RausSicht++;
+						continue;
+					}
+					// Gehaltenes Ziel nur kurz verdeckt: bleibt Kandidat.
+				}
+				else if (item == _gehalten)
+				{
+					_verlustSeit = -1f;
 				}
 				Uebrig++;
 				Treffer treffer3 = default(Treffer);
@@ -3761,6 +3796,7 @@ namespace Zielhilfe
 			if (treffer.Spieler == null)
 			{
 				_gehalten = null;
+				_verlustSeit = -1f;
 				return false;
 			}
 			if (flag && treffer2.Abstand <= treffer.Abstand + Einstellungen.Wechselvorsprung.Value)
@@ -3773,6 +3809,7 @@ namespace Zielhilfe
 			{
 				_gehalten = treffer.Spieler;
 				_seit = Time.time;
+				_verlustSeit = -1f;
 			}
 			ziel = treffer.Spieler;
 			zielpunkt = treffer.Punkt;
@@ -3797,6 +3834,7 @@ namespace Zielhilfe
 		public void Vergessen()
 		{
 			_gehalten = null;
+			_verlustSeit = -1f;
 		}
 	}
 
@@ -5998,6 +6036,15 @@ namespace Zielhilfe
 		{
 			float schwelle = Einstellungen.MagnetWeicht.Value;
 			if (schwelle <= 0f || dt <= 0f || magnet == Vector2.zero)
+			{
+				return magnet;
+			}
+			// Nur wenn die EIGENE Maus wirklich steuert. Frueher wurde allein die
+			// Bewegung relativ zum Ziel geprueft: bei stiller Maus und quer laufendem
+			// Gegner (Interchange 08.11.: 3,5 Grad/s x Zoom 6 = 21 > 10) galt die stille
+			// Hand als "steuert weg", und der Magnet verlor genau seinen Zug zum Ziel -
+			// die Linie fiel bis 1 Grad (45 cm auf 24 m) hinter den Kopf.
+			if (dW.magnitude / dt * Mathf.Max(1f, Zoom) < schwelle)
 			{
 				return magnet;
 			}

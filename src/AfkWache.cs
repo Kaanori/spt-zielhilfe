@@ -15,7 +15,12 @@
 //       Zielhilfe (Spielzugriff.IstFeind) und mit den Ausnahmen aus "3".
 //
 //  Vorrang: Angreifer vor allen anderen, innerhalb einer Gruppe der naechste.
-//  Ein Ziel wird gehalten, bis ein anderes deutlich besser ist (AfkVorrang).
+//  Das Ziel ist KLEBRIG (ab 1.4.1, AfkVorrang): es bleibt, solange es lebt und
+//  (Angreifer oder in Reichweite) ist; ein Angreifer wird nie gegen einen
+//  Nicht-Angreifer getauscht. Verloren gilt es erst, wenn die Schussbahn
+//  laenger als "Keep target while hidden" zu ist. Gewechselt wird nur, wenn
+//  ein NEUER Angreifer auftaucht (waehrend das Ziel keiner ist) oder ein
+//  anderes in der gleichen Gruppe viel naeher ist (unter der halben Entfernung).
 //
 //  Zielen: derselbe Punkt wie bei der Zielhilfe (MainPlugin.PunktWaehlen:
 //  Zone nach Panzerung bzw. freie Kopfbox, dann Zielpunkt.MitVorhalt mit
@@ -60,6 +65,8 @@ namespace Zielhilfe
 
 		public static ConfigEntry<float> Merken;
 
+		public static ConfigEntry<float> Haltezeit;
+
 		public static ConfigEntry<float> Drehrate;
 
 		public static ConfigEntry<float> Toleranz;
@@ -100,6 +107,12 @@ namespace Zielhilfe
 				+ "Hits are remembered even while the guard is off, so switching it on right after "
 				+ "being shot still knows the shooter.",
 				80, new AcceptableValueRange<float>(0f, 300f)));
+			Haltezeit = Eintrag.B(c, s, "Keep target while hidden (s)", 0.75f, D(
+				"The current target is kept as long as it lives and is an attacker or within range - even if "
+				+ "it ducks behind cover for a moment. Only after the line of fire has been blocked this long "
+				+ "the guard looks for another target. An attacker is never swapped for a non-attacker while "
+				+ "it is still shootable.",
+				75, new AcceptableValueRange<float>(0f, 3f)));
 			Drehrate = Eintrag.B(c, s, "Max turn rate (deg/s)", 360f, D(
 				"How fast the view may turn towards a target. Lower = smoother, but slower on the first shot.",
 				70, new AcceptableValueRange<float>(30f, 1080f)));
@@ -132,15 +145,23 @@ namespace Zielhilfe
 	}
 
 	/// <summary>
-	/// Zielwahl der AFK-Wache, ohne Unity (Offline-Test): nur freie Kandidaten,
-	/// Angreifer vor allen anderen, innerhalb der Gruppe der naechste. Das
-	/// bisherige Ziel bleibt, solange es frei ist, zur besten Gruppe gehoert
-	/// und hoechstens wechselMeter weiter weg ist als der beste Kandidat.
+	/// Zielwahl der AFK-Wache, ohne Unity (Offline-Test): nur freie Kandidaten
+	/// kommen als NEUES Ziel in Frage, Angreifer vor allen anderen, innerhalb der
+	/// Gruppe der naechste. Das bisherige Ziel ist klebrig:
+	///   - es bleibt, solange es frei ist ODER (aktuellGehalten) noch nicht lange
+	///     genug verdeckt war;
+	///   - ein Nicht-Angreifer weicht einem NEUEN Angreifer; ein Angreifer weicht
+	///     nie einem Nicht-Angreifer;
+	///   - innerhalb der gleichen Gruppe wird nur gewechselt, wenn der beste
+	///     Kandidat naeher als wechselAnteil x Entfernung des bisherigen ist.
 	/// </summary>
 	internal static class AfkVorrang
 	{
+		/// <param name="aktuell">Index des bisherigen Ziels oder -1 (es darf frei[aktuell] == false sein).</param>
+		/// <param name="wechselAnteil">z. B. 0,5: erst unter der halben Entfernung wird getauscht.</param>
+		/// <param name="aktuellGehalten">Das bisherige Ziel ist zwar nicht frei, aber noch innerhalb der Haltezeit.</param>
 		/// <returns>Index des Ziels oder -1.</returns>
-		internal static int Waehle(bool[] angreifer, float[] abstand, bool[] frei, int anzahl, int aktuell, float wechselMeter)
+		internal static int Waehle(bool[] angreifer, float[] abstand, bool[] frei, int anzahl, int aktuell, float wechselAnteil, bool aktuellGehalten)
 		{
 			int best = -1;
 			for (int i = 0; i < anzahl; i++)
@@ -156,14 +177,23 @@ namespace Zielhilfe
 					best = i;
 				}
 			}
-			if (best < 0)
+			bool hat = aktuell >= 0 && aktuell < anzahl;
+			if (hat && (frei[aktuell] || aktuellGehalten))
 			{
-				return -1;
-			}
-			if (aktuell >= 0 && aktuell < anzahl && aktuell != best && frei[aktuell]
-				&& angreifer[aktuell] == angreifer[best]
-				&& abstand[aktuell] <= abstand[best] + wechselMeter)
-			{
+				if (best < 0 || best == aktuell)
+				{
+					return aktuell;
+				}
+				if (!angreifer[aktuell] && angreifer[best])
+				{
+					// Neuer Angreifer: der geht vor.
+					return best;
+				}
+				if (angreifer[aktuell] == angreifer[best] && abstand[best] < wechselAnteil * abstand[aktuell])
+				{
+					// Gleiche Gruppe, aber der andere ist viel naeher.
+					return best;
+				}
 				return aktuell;
 			}
 			return best;
@@ -241,7 +271,9 @@ namespace Zielhilfe
 
 		private const float Beinahe = 1.2f;
 
-		private const float Wechselmeter = 5f;
+		// Tausch innerhalb einer Gruppe (beide Angreifer / beide nicht) erst, wenn der
+		// andere unter dieser Entfernung relativ zum jetzigen Ziel liegt.
+		private const float WechselAnteil = 0.5f;
 
 		private readonly Feuerstoss _stoss = new Feuerstoss();
 
@@ -257,7 +289,7 @@ namespace Zielhilfe
 
 		private float _naechsteAuswahl;
 
-		private float _verdeckt;
+		private readonly VerlustZaehler _verlust = new VerlustZaehler();
 
 		private Player.FirearmController _abzugAn;
 
@@ -406,7 +438,7 @@ namespace Zielhilfe
 			Aktiv = true;
 			_ziel = null;
 			_naechsteAuswahl = 0f;
-			_verdeckt = 0f;
+			_verlust.Zuruecksetzen();
 			_versatzHat = false;
 			_letzteRate = 0f;
 			_nachladeVersuche = 0;
@@ -427,6 +459,7 @@ namespace Zielhilfe
 			Loslassen();
 			AdsAus();
 			Aktiv = false;
+			ZonenRuhe.Instanz.Vergessen();
 			_ziel = null;
 			_zeile = "";
 			if (melden || grund == "you died")
@@ -489,7 +522,7 @@ namespace Zielhilfe
 				if ((object)neu != _ziel)
 				{
 					_versatzHat = _versatzHat && neu != null;
-					_verdeckt = 0f;
+					_verlust.Zuruecksetzen();
 					if (neu != null)
 					{
 						SoftAim.Protokoll?.LogInfo($"[Zielhilfe] AFK guard target: {Name(neu)}"
@@ -510,7 +543,10 @@ namespace Zielhilfe
 				return;
 			}
 
-			// Punkt auf dem Ziel: dieselbe Wahl wie die Zielhilfe.
+			// Punkt auf dem Ziel: dieselbe Wahl wie die Zielhilfe. Waehrend eines
+			// Feuerstosses bleibt die Zonenwahl (Kopf/Brust) stehen - der Stoss geht
+			// auf denselben Punkt.
+			ZonenRuhe.Instanz.Gesperrt = _stoss.Gedrueckt;
 			Vector3 punkt = Zielpunkt.Fuer(_ziel);
 			MainPlugin.PunktWaehlen(ich, _ziel, kamera, Einstellungen.ZoneNachPanzerung.Value, ref punkt, out _);
 			Vector3 start = Zielpunkt.SichtStart(ich, kamera);
@@ -522,21 +558,24 @@ namespace Zielhilfe
 				{
 					punkt = rumpf;
 					frei = true;
+					// Kopf ist zu: ab jetzt Brust halten, bis der Kopf wieder eine
+					// Weile frei ist - nicht bildweise zwischen beiden springen.
+					ZonenRuhe.Instanz.Erzwinge(_ziel, Time.time);
 				}
 			}
+			// Kurz verdeckt (Bot geht hinter eine Kante): das Ziel bleibt bis
+			// "Keep target while hidden" erhalten, der Abzug ist solange los.
+			bool gehalten = _verlust.Schritt(dt, frei, AfkEinstellungen.Haltezeit.Value);
 			if (!frei)
 			{
-				// Kurz verdeckt (Bot geht hinter eine Kante): nicht sofort aufgeben.
 				Loslassen();
-				_verdeckt += dt;
-				if (_verdeckt > 0.5f)
+				if (!gehalten)
 				{
 					_ziel = null;
 					_naechsteAuswahl = 0f;
 				}
 				return;
 			}
-			_verdeckt = 0f;
 			_letztesZiel = Time.time;
 			// Soft-Aim-Bedeutung: die SCHUSSLINIE liegt auf dem Punkt, also
 			// traegt der Punkt den ganzen Kugelfall (siehe MainPlugin.Update).
@@ -576,6 +615,7 @@ namespace Zielhilfe
 			Vector3 start = Zielpunkt.SichtStart(ich, kamera);
 			float nah = AfkEinstellungen.Reichweite.Value;
 			float fern = Einstellungen.Reichweite.Value;
+			bool gehalten = _ziel != null && _verlust.Verloren <= AfkEinstellungen.Haltezeit.Value;
 			int aktuell = -1;
 			foreach (Player p in alle)
 			{
@@ -584,6 +624,7 @@ namespace Zielhilfe
 					continue;
 				}
 				bool angreifer = IstAngreifer(p);
+				bool istZiel = (object)p == _ziel;
 				float d = Vector3.Distance(ich.Position, p.Position);
 				if (angreifer)
 				{
@@ -594,7 +635,9 @@ namespace Zielhilfe
 				}
 				else
 				{
-					if (d > nah || !Spielzugriff.IstFeind(p, ich))
+					// Das bisherige Ziel darf etwas ueber die Reichweite hinaus laufen,
+					// sonst fliegt es an der Grenze bildweise raus und rein.
+					if (d > (istZiel ? nah * 1.1f : nah) || !Spielzugriff.IstFeind(p, ich))
 					{
 						continue;
 					}
@@ -607,7 +650,13 @@ namespace Zielhilfe
 				}
 				bool frei = Zielpunkt.Sichtlinie(start, Zielpunkt.Fuer(p), p, out _, out _, out _)
 					|| Zielpunkt.Sichtlinie(start, Zielpunkt.Koerper(p), p, out _, out _, out _);
-				if (!frei)
+				if (!frei && istZiel && _verlust.Verloren <= 0f)
+				{
+					// Die Schusslinie zum Ziel war im letzten Bild frei (Schritt prueft
+					// den echten Zielpunkt) - ein einzelner Fehlwurf zaehlt nicht.
+					frei = true;
+				}
+				if (!frei && !(istZiel && gehalten))
 				{
 					continue;
 				}
@@ -621,13 +670,13 @@ namespace Zielhilfe
 				_kandidaten.Add(p);
 				_kAngreifer[i] = angreifer;
 				_kAbstand[i] = d;
-				_kFrei[i] = true;
-				if ((object)p == _ziel)
+				_kFrei[i] = frei;
+				if (istZiel)
 				{
 					aktuell = i;
 				}
 			}
-			int wahl = AfkVorrang.Waehle(_kAngreifer, _kAbstand, _kFrei, _kandidaten.Count, aktuell, Wechselmeter);
+			int wahl = AfkVorrang.Waehle(_kAngreifer, _kAbstand, _kFrei, _kandidaten.Count, aktuell, WechselAnteil, gehalten);
 			return wahl < 0 ? null : _kandidaten[wahl];
 		}
 

@@ -36,7 +36,7 @@ bug, please open an [issue](https://github.com/Kaanori/spt-zielhilfe/issues).
 
 ## Installation
 
-1. Download `Zielhilfe-1.4.0.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
+1. Download `Zielhilfe-1.4.2.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
 2. Extract it **into your SPT game folder** (the folder that contains `EscapeFromTarkov.exe`).
    The ZIP already has the right layout; the mod ends up in `BepInEx/plugins/`.
    On Windows, make sure "Extract All" does not add an extra subfolder.
@@ -110,7 +110,7 @@ While it is on:
 - **You stay where you are.** The guard never moves your character; it only turns the view and works the trigger. You can still use your keys, but the guard keeps aiming until you switch it off.
 - **It shoots back at attackers.** Anyone who hits you, or whose bullet passes within about 1.2 m of you, counts as an attacker for 30 seconds (configurable) and is engaged at any distance up to "2 Target / Range in meters" - even a bot the game does not list as hostile, and even if its type is excluded in "3 Exclusions". Hits are remembered even while the guard is off, so switching it on right after being shot still knows the shooter.
 - **It shoots every hostile bot within 25 m** (configurable) that has a clear line of fire. Hostility and the exclusions in "3 Exclusions" work exactly as for the aim assist.
-- **Priority:** attackers first, then the nearest. It keeps its current target until another one is clearly better (5 m closer, or an attacker).
+- **Priority:** attackers first, then the nearest. The target is sticky (since 1.4.1): it is kept while it lives and is an attacker or in range, even when it ducks behind cover for a moment ("Keep target while hidden"). An attacker is never swapped for a non-attacker; it switches only when a new attacker appears while the target is not one, or when another one in the same group is less than half as far away.
 - **Aiming** uses the same aim point as the aim assist (zone by armor or your "Aim at" choice, free head box, lead and bullet drop) and lays the real bullet line onto it. The view turns smoothly, capped by "Max turn rate".
 - **Firing** only happens while the bullet line is within "Aim tolerance" of the aim point: full-auto weapons fire bursts ("Burst length", "Burst pause"), semi-auto and bolt-action weapons fire single shots. It aims down sights while engaging (optional) and lowers the weapon 3 s after the last target.
 - **Reloading:** when the weapon is empty it reloads exactly like your reload key (a magazine from your rig/pockets). If nothing can be loaded it stops firing and shows "AFK guard: out of ammo".
@@ -308,6 +308,7 @@ Only "Toggle hotkey" is shown while "Show all settings" is off.
 | Toggle hotkey | Press once in a raid to switch the guard on, again to switch it off (the only off switch besides death/raid end). None = disabled. | Pause | any KeyCode |
 | Range (m) | Hostile bots closer than this are engaged even if they have not attacked you. | 25 | 5-150 |
 | Remember attacker (s) | How long someone who hit you or shot close past you stays an attacker. | 30 | 0-300 |
+| Keep target while hidden (s) | The current target is kept this long after the line of fire is blocked; only then another target is chosen. | 0.75 | 0-3 |
 | Max turn rate (deg/s) | How fast the view may turn towards a target. | 360 | 30-1080 |
 | Aim tolerance (cm) | Fires only while the bullet line is this close to the aim point (at the target's distance). A full-auto burst stops when it drifts off more than 3x this (at least 1.5 degrees). | 10 | 2-50 |
 | Burst length (s) | Full-auto/burst weapons: trigger time per burst. | 0.3 | 0.05-2 |

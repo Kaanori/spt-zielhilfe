@@ -569,6 +569,8 @@ namespace Zielhilfe
 		private int _stilGroesse = -1;
 		private Texture2D _weiss;
 
+		private bool _diagGeschrieben;
+
 		private void OnGUI()
 		{
 			if (Event.current.type != EventType.Repaint || !EspDaten.Zeichnen)
@@ -585,9 +587,37 @@ namespace Zielhilfe
 				_stil = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, clipping = TextClipping.Overflow, wordWrap = false };
 				_weiss = Texture2D.whiteTexture;
 			}
+			// Andere Mods setzen GUI.matrix (Skalierung/Verschiebung fuer ihre
+			// Oberflaechen) und setzen sie nicht zurueck. Dann landen unsere in
+			// Bildschirmpixeln gerechneten Kaesten verschoben (z. B. "im Boden").
+			// Darum fuer unser Zeichnen immer die Einheitsmatrix.
+			Matrix4x4 guiVorher = GUI.matrix;
+			if (!_diagGeschrieben)
+			{
+				_diagGeschrieben = true;
+				Matrix4x4 pj = kam.projectionMatrix, nj = kam.nonJitteredProjectionMatrix;
+				SoftAim.Protokoll?.LogInfo("[Zielhilfe] ESP diag: screen " + Screen.width + "x" + Screen.height
+					+ ", camera pixels " + kam.pixelWidth + "x" + kam.pixelHeight + ", rect " + kam.rect
+					+ ", aspect " + kam.aspect.ToString("F3") + ", fov " + kam.fieldOfView.ToString("F1")
+					+ ", GUI.matrix identity=" + guiVorher.isIdentity
+					+ (guiVorher.isIdentity ? "" : " (" + guiVorher.ToString().Replace("\n", " ") + ")")
+					+ ", proj m02/m12 " + pj.m02.ToString("F4") + "/" + pj.m12.ToString("F4")
+					+ ", nonJittered m02/m12 " + nj.m02.ToString("F4") + "/" + nj.m12.ToString("F4")
+					+ ", m11 " + pj.m11.ToString("F4") + "/" + nj.m11.ToString("F4"));
+			}
+			GUI.matrix = Matrix4x4.identity;
 			float sw = Screen.width;
 			float sh = Screen.height;
 			Rect kr = kam.rect;
+			// Hochskalierer (FSR4Bridge, DLSS-Mods) verkleinern camera.rect auf den
+			// Renderanteil (z. B. 0,59 x 0,59 links unten) und ziehen das Bild danach
+			// auf den ganzen Bildschirm. Sichtbar ist also immer das volle Bild -
+			// mit dem verkleinerten rect landeten die Kaesten zu tief und zu weit links.
+			// Erkennung: rect beginnt bei 0/0 und ist gleichmaessig verkleinert.
+			if (kr.x == 0f && kr.y == 0f && kr.width < 0.999f && Mathf.Abs(kr.width - kr.height) < 0.01f)
+			{
+				kr = new Rect(0f, 0f, 1f, 1f);
+			}
 			// Ohne Zittern des Hochskalierers (FSR/TAA): nicht verwackelte Projektion.
 			Matrix4x4 m = kam.nonJitteredProjectionMatrix * kam.worldToCameraMatrix;
 			float pxMeter = m.m11 * 0.5f * sh * kr.height;
@@ -717,6 +747,7 @@ namespace Zielhilfe
 				}
 			}
 			GUI.color = vorher;
+			GUI.matrix = guiVorher;
 		}
 
 		private static bool Proj(ref Matrix4x4 m, Rect kr, Vector3 p, float sw, float sh, out float x, out float y, out float tiefe)
