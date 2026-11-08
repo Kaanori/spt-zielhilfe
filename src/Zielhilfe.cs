@@ -1080,7 +1080,7 @@ namespace Zielhilfe
 			return Mathf.Lerp(_zeitBisMeter[num], _zeitBisMeter[num + 1], t);
 		}
 	}
-	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.2")]
+	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.3")]
 	public class MainPlugin : BaseUnityPlugin
 	{
 		private readonly Zielsuche _suche = new Zielsuche();
@@ -2496,7 +2496,17 @@ namespace Zielhilfe
 			return _ebenen;
 		}
 
-		public static bool Durchlaessig(Collider c, out string grund)
+		/// <param name="nurDurchsichtig">
+		/// AFK-Wache (ab 1.4.3): nur Durchsichtiges (Glas, Maschendraht, Gitter, Gras,
+		/// Stoff, Pappe ...) zaehlt als frei, nicht "durchschlagbar nach Spielregel".
+		/// Gemessen am Raid 08.11. (Streets, 5,56 mm Pen 53): die Regel nannte MetalThin
+		/// (Level 4) und Plastic (Level 1) 100 % durchschlagbar, WoodThick (Level 25) 95 %;
+		/// danach getroffen wurde das Ziel in allen Aufzeichnungen nur bei 16 % (MetalThin,
+		/// 67 Schuesse), 18 % (WoodThick, 45) und 0 % (Plastic, 32) - Splitterung,
+		/// Ablenkung und mehrere Wandlagen (Auto, Muelltonne) rechnet die Regel nicht.
+		/// Fabric dagegen 77 % (22). Die normale Zielhilfe bleibt bei der Spielregel.
+		/// </param>
+		public static bool Durchlaessig(Collider c, out string grund, bool nurDurchsichtig = false)
 		{
 			grund = "";
 			if (c == null)
@@ -2534,6 +2544,11 @@ namespace Zielhilfe
 				{
 					grund = $"{m} see-through";
 					return true;
+				}
+				if (nurDurchsichtig)
+				{
+					grund = $"{m} blocks (AFK guard: only see-through material counts as clear)";
+					return false;
 				}
 				// Spielregel (BallisticCollider.IsPenetrated): durchschlagen nur, wenn
 				// PenetrationChance > 0 UND Durchschlagskraft der Patrone >
@@ -2973,7 +2988,8 @@ namespace Zielhilfe
 		/// die eigene Patrone schlaegt es nach Spielregel durch (Durchschuss.Durchlaessig).
 		/// Keine Toleranz am Ende: die Strahllaenge endet am Punkt.
 		/// </summary>
-		public static bool Sichtlinie(Vector3 start, Vector3 punkt, Player ziel, out string grund, out Collider hindernis, out float abstand)
+		/// <param name="nurDurchsichtig">Siehe Durchschuss.Durchlaessig (AFK-Wache).</param>
+		public static bool Sichtlinie(Vector3 start, Vector3 punkt, Player ziel, out string grund, out Collider hindernis, out float abstand, bool nurDurchsichtig = false)
 		{
 			grund = "clear";
 			hindernis = null;
@@ -3010,7 +3026,7 @@ namespace Zielhilfe
 				{
 					continue;
 				}
-				if (Durchschuss.Durchlaessig(c, out var g))
+				if (Durchschuss.Durchlaessig(c, out var g, nurDurchsichtig))
 				{
 					if (durch.Length == 0)
 					{

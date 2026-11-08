@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.3 — 2026-11-08
+
+AFK guard: stops shooting into cover. In the reported raid (Streets, M4A1 with 6x scope, M995) 86 of 121 guard shots hit an obstacle first and only 5 of those still hit the target; shots with a really clear path hit 24 of 35.
+
+- **The guard checks the bullet's flight path, not a straight ray to the aim point.** The ray used to end at the aim point *without* lead, while the bullet flew to the lead point (up to 1.5 m to the side at 230 m) - e.g. into a tram the check ray missed by 0.7-1.4 m. The check now runs from the muzzle to the lead point along the arc the bullet flies above the straight line (bullet drop compensation).
+- **Only see-through material counts as clear for the guard** (glass, chain-link fence, grates, grass, fabric, cardboard ...). By the game's penetration rule a 5.56 round "goes through" car bodies (MetalThin), garbage containers (Plastic) and wooden walls, but in all recordings the target was hit afterwards in only 16 % (MetalThin), 18 % (WoodThick) and 0 % (Plastic) of such shots - fragmentation, deflection and several wall layers are not part of that rule. Bots behind such cover are no longer engaged; the guard holds fire and logs `AFK guard: holding fire at ... - flight path covered by ...`. The normal aim assist keeps the game rule ("Ignore shoot-through obstacles").
+- **"Aim tolerance (cm)" now really is centimetres at the target.** A hidden minimum of 0.05° turned 10 cm into 21 cm beyond 115 m; at 230-250 m the guard fired with the line 10-21 cm off. Up to 115 m nothing changes.
+- Tests: offline tests for the flight path (with four real shots from the raid) and the tolerance.
+
 ## 1.4.2 — 2026-11-08
 
 - **ESP: boxes were offset (too low / towards the bottom-left) with upscalers.** FSR (e.g. FSR4Bridge), DLSS mods and the game's own upscaling shrink `camera.rect` to the render share (e.g. 0.59 × 0.59) and then stretch the image to the full screen. The ESP used that shrunk rect and squeezed all boxes into the lower-left part of the screen. It now detects a uniformly shrunk rect anchored at 0/0 and maps to the full screen; real letterboxing still works as before.

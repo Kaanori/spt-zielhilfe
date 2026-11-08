@@ -41,7 +41,19 @@
 //  Raid-Ende, Pause (Zeit steht) und sobald ein Menue/Inventar offen ist.
 //  Tod und Raid-Ende schalten die Wache ganz aus.
 //
-//  Die reine Logik (Vorrang, Feuerstoss) haengt nicht an Unity - der
+//  Freie Schussbahn (ab 1.4.3, Raid 08.11.: 86 von 121 Schuessen trafen
+//  zuerst ein Hindernis, nur 5 davon danach das Ziel):
+//    - geprueft wird die FLUGBAHN, nicht der gerade Strahl zum Punkt: bis zum
+//      Vorhaltpunkt (punkt + Vorhalt) und mit dem Bogen, den die Kugel ueber
+//      der Geraden fliegt (Fallausgleich, AfkBahn). Vorher lag der Vorhalt
+//      (bis 1,5 m auf 230 m) ausserhalb der Pruefung - die Kugel flog in die
+//      Strassenbahn, an der der Pruefstrahl 0,7-1,4 m vorbeiging;
+//    - nur Durchsichtiges zaehlt als frei (Durchschuss.Durchlaessig mit
+//      nurDurchsichtig): Autos, Muelltonnen, Holzwaende nicht mehr;
+//    - die Feuerfreigabe ist wirklich "Aim tolerance (cm)" am Ziel - die alte
+//      Untergrenze 0,05 Grad machte daraus auf 240 m 21 cm.
+//
+//  Die reine Logik (Vorrang, Feuerstoss, Flugbahn) haengt nicht an Unity - der
 //  Offline-Test (Zielhilfe-QuickSetupTest/) ruft sie per Reflexion auf.
 // ---------------------------------------------------------------
 using System;
@@ -258,6 +270,44 @@ namespace Zielhilfe
 		}
 	}
 
+	/// <summary>
+	/// Flugbahn der Kugel fuer die Freipruefung, ohne Physik (Offline-Test).
+	/// Die Waffe zeigt auf soll = ende + fall nach oben (Zielpunkt.MitVorhalt im
+	/// Soft-Aim-Sinn: die Schusslinie traegt den ganzen Fall). Die Kugel faellt
+	/// unter dieser Linie etwa quadratisch und kommt bei ende an; gegenueber der
+	/// Geraden start -> ende liegt sie beim Anteil s um fall * (s - s^2) hoeher
+	/// (in der Mitte fall/4). Ein gerader Strahl zu ende verfehlt also den Bogen,
+	/// ein Strahl zu soll den Abstieg am Ende - geprueft wird ein Linienzug.
+	/// </summary>
+	internal static class AfkBahn
+	{
+		internal const int Stuetzen = 5;
+
+		/// <summary>Fuellt punkte[0..Stuetzen-1]: start, Bogen bei 1/4, 1/2, 3/4, ende.</summary>
+		internal static void Punkte(Vector3 start, Vector3 ende, float fall, Vector3[] punkte)
+		{
+			Vector3 weg = ende - start;
+			for (int i = 0; i < Stuetzen; i++)
+			{
+				float s = i / (float)(Stuetzen - 1);
+				Vector3 p = start + weg * s;
+				p.y += Mathf.Max(0f, fall) * (s - s * s);
+				punkte[i] = p;
+			}
+			punkte[0] = start;
+			punkte[Stuetzen - 1] = ende;
+		}
+
+		/// <summary>
+		/// Feuerfreigabe in Grad: tolCm am Ziel, ohne die alte Untergrenze von
+		/// 0,05 Grad (die ab 115 m mehr als die eingestellten 10 cm zuliess).
+		/// </summary>
+		internal static float ToleranzGrad(float tolCm, float entfernung)
+		{
+			return Mathf.Max(0.005f, Mathf.Atan(tolCm * 0.01f / Mathf.Max(0.5f, entfernung)) * 57.29578f);
+		}
+	}
+
 	internal sealed class AfkWache : MonoBehaviour
 	{
 		/// <summary>Laeuft die Wache? Die normale Zielhilfe ruht dann (MainPlugin.Update, MausEingabe).</summary>
@@ -314,6 +364,12 @@ namespace Zielhilfe
 		private string _zeile = "";
 
 		private GUIStyle _stil;
+
+		private readonly Vector3[] _bahn = new Vector3[AfkBahn.Stuetzen];
+
+		private bool _warFrei = true;
+
+		private float _naechsteSperrMeldung;
 
 		// ---- Eingaenge aus den Harmony-Abgriffen ---------------------------
 
@@ -447,6 +503,8 @@ namespace Zielhilfe
 			_stoss.Zuruecksetzen();
 			_gemeldet.Clear();
 			_zustand = "";
+			_warFrei = true;
+			_naechsteSperrMeldung = 0f;
 			Status("watching");
 			string taste = AfkEinstellungen.Taste.Value.ToString();
 			Hinweis($"AFK guard ON - shoots back at attackers and at enemies within {AfkEinstellungen.Reichweite.Value:0} m. Press {taste} to stop.", false);
@@ -550,13 +608,22 @@ namespace Zielhilfe
 			Vector3 punkt = Zielpunkt.Fuer(_ziel);
 			MainPlugin.PunktWaehlen(ich, _ziel, kamera, Einstellungen.ZoneNachPanzerung.Value, ref punkt, out _);
 			Vector3 start = Zielpunkt.SichtStart(ich, kamera);
-			bool frei = Zielpunkt.Sichtlinie(start, punkt, _ziel, out _, out _, out _);
+			// Soft-Aim-Bedeutung: die SCHUSSLINIE liegt auf dem Punkt, also
+			// traegt der Punkt den ganzen Kugelfall (siehe MainPlugin.Update).
+			// Vorhalt und Fall VOR der Freipruefung - geprueft wird, wo die Kugel
+			// wirklich fliegt (AfkBahn), nicht der Strahl zum Punkt ohne Vorhalt.
+			Rueckstoss.AktiverAnteil = 1f;
+			Vector3 soll = Zielpunkt.MitVorhalt(ich, _ziel, punkt);
+			float fall = Mathf.Max(0f, Zielpunkt.VorhaltFall);
+			Vector3 vorhalt = soll - punkt - Vector3.up * fall;
+			bool frei = BahnFrei(start, punkt + vorhalt, fall, _ziel, out string sperre);
 			if (!frei)
 			{
 				Vector3 rumpf = Zielpunkt.Koerper(_ziel);
-				if (Zielpunkt.Sichtlinie(start, rumpf, _ziel, out _, out _, out _))
+				if (BahnFrei(start, rumpf + vorhalt, fall, _ziel, out _))
 				{
 					punkt = rumpf;
+					soll = rumpf + vorhalt + Vector3.up * fall;
 					frei = true;
 					// Kopf ist zu: ab jetzt Brust halten, bis der Kopf wieder eine
 					// Weile frei ist - nicht bildweise zwischen beiden springen.
@@ -569,6 +636,14 @@ namespace Zielhilfe
 			if (!frei)
 			{
 				Loslassen();
+				if (_warFrei && Time.time >= _naechsteSperrMeldung)
+				{
+					_naechsteSperrMeldung = Time.time + 2f;
+					SoftAim.Protokoll?.LogInfo($"[Zielhilfe] AFK guard: holding fire at {Name(_ziel)}"
+						+ $" ({Vector3.Distance(ich.Position, _ziel.Position):0} m) - flight path {sperre}");
+				}
+				_warFrei = false;
+				Status($"{(IstAngreifer(_ziel) ? "attacker" : "enemy")} {Name(_ziel)} - holding fire, flight path blocked");
 				if (!gehalten)
 				{
 					_ziel = null;
@@ -576,11 +651,8 @@ namespace Zielhilfe
 				}
 				return;
 			}
+			_warFrei = true;
 			_letztesZiel = Time.time;
-			// Soft-Aim-Bedeutung: die SCHUSSLINIE liegt auf dem Punkt, also
-			// traegt der Punkt den ganzen Kugelfall (siehe MainPlugin.Update).
-			Rueckstoss.AktiverAnteil = 1f;
-			Vector3 soll = Zielpunkt.MitVorhalt(ich, _ziel, punkt);
 			float fehler = Zielen(ich, kamera, soll, dt);
 
 			if (AfkEinstellungen.Anvisieren.Value && bereit && !fc.IsAiming && Time.time >= _naechsterAds)
@@ -591,7 +663,7 @@ namespace Zielhilfe
 			}
 
 			float entfernung = Mathf.Max(0.5f, Vector3.Distance(start, soll));
-			float tolGrad = Mathf.Max(0.05f, Mathf.Atan(AfkEinstellungen.Toleranz.Value * 0.01f / entfernung) * 57.29578f);
+			float tolGrad = AfkBahn.ToleranzGrad(AfkEinstellungen.Toleranz.Value, entfernung);
 			float abbruchGrad = Mathf.Max(3f * tolGrad, 1.5f);
 			// Feuerstoss-Modus (burst/doublet) wie Vollauto halten - das Spiel bricht den Stoss selbst ab.
 			Weapon.EFireMode modus = w.SelectedFireMode;
@@ -648,8 +720,10 @@ namespace Zielhilfe
 						continue;
 					}
 				}
-				bool frei = Zielpunkt.Sichtlinie(start, Zielpunkt.Fuer(p), p, out _, out _, out _)
-					|| Zielpunkt.Sichtlinie(start, Zielpunkt.Koerper(p), p, out _, out _, out _);
+				// Nur Durchsichtiges zaehlt als frei (wie in Schritt) - ein Bot hinter
+				// einem Auto ist kein Kandidat. Vorhalt/Bogen prueft erst Schritt.
+				bool frei = Zielpunkt.Sichtlinie(start, Zielpunkt.Fuer(p), p, out _, out _, out _, true)
+					|| Zielpunkt.Sichtlinie(start, Zielpunkt.Koerper(p), p, out _, out _, out _, true);
 				if (!frei && istZiel && _verlust.Verloren <= 0f)
 				{
 					// Die Schusslinie zum Ziel war im letzten Bild frei (Schritt prueft
@@ -678,6 +752,26 @@ namespace Zielhilfe
 			}
 			int wahl = AfkVorrang.Waehle(_kAngreifer, _kAbstand, _kFrei, _kandidaten.Count, aktuell, WechselAnteil, gehalten);
 			return wahl < 0 ? null : _kandidaten[wahl];
+		}
+
+		/// <summary>
+		/// Freie Flugbahn von start bis ende (Punkt + Vorhalt) mit dem Bogen ueber
+		/// der Geraden (AfkBahn); nur Durchsichtiges zaehlt als frei.
+		/// </summary>
+		private bool BahnFrei(Vector3 start, Vector3 ende, float fall, Player ziel, out string grund)
+		{
+			AfkBahn.Punkte(start, ende, fall, _bahn);
+			for (int i = 0; i + 1 < _bahn.Length; i++)
+			{
+				if (!Zielpunkt.Sichtlinie(_bahn[i], _bahn[i + 1], ziel, out grund, out _, out float abstand, true))
+				{
+					float vorher = Vector3.Distance(start, _bahn[i]) + abstand;
+					grund = $"{grund} ({vorher:0} m out)";
+					return false;
+				}
+			}
+			grund = "clear";
+			return true;
 		}
 
 		/// <summary>

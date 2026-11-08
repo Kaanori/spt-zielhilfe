@@ -4,7 +4,7 @@
     <TargetFramework>net471</TargetFramework>
     <AssemblyName>Zielhilfe</AssemblyName>
     <RootNamespace>Zielhilfe</RootNamespace>
-    <Version>1.4.2</Version>
+    <Version>1.4.3</Version>
     <LangVersion>latest</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
