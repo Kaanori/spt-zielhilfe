@@ -489,6 +489,15 @@ namespace Zielhilfe
 
 		private bool SichtFrei(Player p, Vector3 auge)
 		{
+			if (Durchschuss.NurOptisch)
+			{
+				// Ab 1.4.7: dieselbe optische Sicht wie die Zielhilfe (Laub,
+				// Planen/Stoff verdecken, nur Klarglas/Gitter durchsichtig) - Kopf,
+				// Brust oder Becken. Ergebnis-Ablage je Bild in Sichtlinie.
+				return Zielpunkt.Sichtlinie(auge, Zielpunkt.Fuer(p), p, out _, out _, out _)
+					|| Zielpunkt.Sichtlinie(auge, Zielpunkt.Koerper(p), p, out _, out _, out _)
+					|| Zielpunkt.Sichtlinie(auge, Zielpunkt.Becken(p), p, out _, out _, out _);
+			}
 			HashSet<Collider> zielK = null;
 			Transform wurzel = null;
 			Vector3 kopf;

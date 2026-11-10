@@ -36,7 +36,7 @@ bug, please open an [issue](https://github.com/Kaanori/spt-zielhilfe/issues).
 
 ## Installation
 
-1. Download `Zielhilfe-1.4.3.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
+1. Download `Zielhilfe-1.4.7.zip` from the [Releases](https://github.com/Kaanori/spt-zielhilfe/releases) page.
 2. Extract it **into your SPT game folder** (the folder that contains `EscapeFromTarkov.exe`).
    The ZIP already has the right layout; the mod ends up in `BepInEx/plugins/`.
    On Windows, make sure "Extract All" does not add an extra subfolder.
@@ -52,8 +52,9 @@ Delete the mod's files from `BepInEx/plugins/` (settings: `BepInEx/config/` for 
 
 - **Enemy filter.** By default only bots that the game itself considers hostile to you are used (the game's own `BotsGroup` / `IsPlayerEnemy` logic: side, karma, boss loyalty, friend/warn/enemy types). Friendly scavs are ignored until they turn hostile. Scavs, PMCs and bosses/guards can additionally be excluded individually.
 - **Range and selection.** Enemies beyond a configurable range are ignored. The current target is kept until another enemy is clearly better (a switch margin in pixels), which stops the assist from flickering between two enemies standing next to each other.
-- **Line of sight.** Enemies behind walls are skipped. The visibility ray uses the head box (or body point) that is actually reachable. By default the ray only checks the physics layers that bullets use, so invisible visibility-control cubes do not block it.
-- **Shoot-through handling (glass, fences, foliage).** Glass, wire mesh, grates, tall grass and similar are not treated as obstacles. The decision comes from the game's own material and penetration data for the collider that was hit, evaluated for your currently loaded cartridge (penetration vs. material level, plus chance values). Other materials (wood, sheet metal, plastic ...) count as passable if the computed probability is above a threshold. Bodies never count as passable.
+- **Line of sight.** Enemies behind walls are skipped. The visibility ray uses the head box (or body point) that is actually reachable. By default the ray only checks the physics layers that bullets use, so invisible visibility-control cubes do not block it. Bushes, tree crowns and tall grass block it as well (the game's own foliage volumes, measured like the bots do); at least one of head, chest or pelvis must be clearly visible.
+- **Only visible targets (since 1.4.7, default on).** Visibility means what you can *see*, not where a bullet would get through: every opaque obstacle hides an enemy - tarps, fabric, cardboard, thin sheet metal, wooden boards, plastic, car bodies - even if your round would penetrate it. Only clear glass (not frosted), broken glass, chain-link fence, grates, open windows and low grass count as see-through; bushes, tree crowns and tall grass by depth. This applies to aiming, zone choice, the AFK guard and the ESP visible/covered display.
+- **Shoot-through handling (only when "Only visible targets" is off).** Glass, wire mesh, grates, tall grass and similar are not treated as obstacles. The decision comes from the game's own material and penetration data for the collider that was hit, evaluated for your currently loaded cartridge (penetration vs. material level, plus chance values). Other materials (wood, sheet metal, plastic ...) count as passable if the computed probability is above a threshold. Bodies never count as passable.
 - **Zone choice by armor ("Choose zone by armor").** For each enemy the worn armor is queried and the zone with the best expected result is chosen, using the same calculation as the game (shot match plus penetration chance from armor class, durability and the cartridge's penetration), taking the enemy's facing into account (front/back plates, sides). Zones are weighted: head 1.0, torso 0.6, pelvis 0.25 (legs lower still). Zones can be individually allowed or disallowed; pelvis and legs act only as fallbacks when head and torso are covered or cannot be penetrated.
 - **Head boxes.** The head in EFT consists of eight hit boxes. The mode "Visible" checks each box individually and picks the first one with a free line of sight (order of preference: head centre, face, jaw, parietal/top, back of head, ears, neck front, neck back; with armor-based selection the least armored free box comes first). Alternatively a fixed box can be forced. Inside the box you choose the aim height (0 = bottom, 1 = top).
 - **Fallback to the chest** when no head box is free (only without armor-based zone choice).
@@ -95,7 +96,7 @@ An overlay that marks enemies on screen, including through walls. It is **off by
 
 - **Per-type filters.** PMC USEC, PMC BEAR, Scav, Boss, Guard/Follower, Raider, Rogue, Cultist, Other - each can be shown or hidden and has its own colour. With "Hostile enemies only" (default) the aim assist's hostility logic is used, so allied/friendly bots are left out exactly as for the aim assist. Bosses are labelled with their name.
 - **Styles.** Full box, corner box or a small marker; optional type/name label, distance, vertical health bar (from the bot's health controller) and a head dot. Labels and line thickness scale with the screen height (identical look at 1080p and 4K).
-- **Visible vs. occluded.** A throttled line-of-sight check (default 8 per second per enemy, at most 6 enemies per frame, bullet-relevant layers only, glass/fences count as see-through) switches between two opacity values, or hides occluded enemies entirely.
+- **Visible vs. occluded.** A throttled line-of-sight check (default 8 per second per enemy, at most 6 enemies per frame, bullet-relevant layers only; with "Only visible targets" the same optical rule as the aim assist - head, chest or pelvis visible, foliage, tarps and other opaque cover hide) switches between two opacity values, or hides occluded enemies entirely.
 - **Far enemies** beyond a configurable distance get only a small marker and the distance.
 - **Only while the aim assist is active** (optional): the ESP shows only while the assist is active, i.e. while you hold its hotkey when "When active" is HoldKey.
 - **Correct placement.** It draws with the camera that renders the picture (`Camera.main`, "FPS Camera"), converts through viewport coordinates (0..1) and multiplies by the window size, so it stays correct with resolution scaling and FSR upscaling (e.g. render 2560x1440 -> output 3840x2160); it uses the non-jittered projection so upscaler jitter does not shake the boxes. It is hidden in the inventory/menus, after death, in third person and - by default - while aiming through a magnifying scope (the lens image has its own camera and field of view, so markers could not line up there; iron sights and red dots are fine).
@@ -109,7 +110,7 @@ While it is on:
 
 - **You stay where you are.** The guard never moves your character; it only turns the view and works the trigger. You can still use your keys, but the guard keeps aiming until you switch it off.
 - **It shoots back at attackers.** Anyone who hits you, or whose bullet passes within about 1.2 m of you, counts as an attacker for 30 seconds (configurable) and is engaged at any distance up to "2 Target / Range in meters" - even a bot the game does not list as hostile, and even if its type is excluded in "3 Exclusions". Hits are remembered even while the guard is off, so switching it on right after being shot still knows the shooter.
-- **It shoots every hostile bot within 25 m** (configurable) that has a clear line of fire. Hostility and the exclusions in "3 Exclusions" work exactly as for the aim assist.
+- **It shoots every hostile bot within 25 m** (configurable) that is visible and has a clear line of fire (since 1.4.7 it never fires at an enemy you could not see, even if the bullet would get through - "Only visible targets"). Hostility and the exclusions in "3 Exclusions" work exactly as for the aim assist.
 - **Priority:** attackers first, then the nearest. The target is sticky (since 1.4.1): it is kept while it lives and is an attacker or in range, even when it ducks behind cover for a moment ("Keep target while hidden"). An attacker is never swapped for a non-attacker; it switches only when a new attacker appears while the target is not one, or when another one in the same group is less than half as far away.
 - **Aiming** uses the same aim point as the aim assist (zone by armor or your "Aim at" choice, free head box, lead and bullet drop) and lays the real bullet line onto it. The view turns smoothly, capped by "Max turn rate".
 - **Firing** only happens while the bullet line is within "Aim tolerance" of the aim point: full-auto weapons fire bursts ("Burst length", "Burst pause"), semi-auto and bolt-action weapons fire single shots. It aims down sights while engaging (optional) and lowers the weapon 3 s after the last target.
@@ -202,6 +203,8 @@ The master switch "Enabled" now lives in "0 Quick Setup".
 | Hold without mouse (magnet), maximum degrees per second | Magnet strength: pulls the bullet line back to the aim point even when the mouse is still. 0 = off. | 10 | 0-60 |
 | Magnet pull time in seconds | How fast the magnet removes a remainder (about two thirds gone after this time). Smaller = firmer. | 0.05 | 0.02-1 |
 | Magnet yields to own mouse above x degrees per second (screen) | Above this own on-screen turn rate the magnet no longer holds against your movement. 0 = off. | 10 | 0-100 |
+| Free movement inside hit zone | While the predicted impact is inside the desired zone (minus the margin), pull, friction and magnet do not act against your own movement; the magnet holds your own chosen point against recoil and sway. Fades back in towards the edge. | on | on/off |
+| Free zone inner margin (%) | Safety margin of the free zone, in percent of the zone width (at least 2 cm). Larger = smaller free core, more centring of tremor. | 15 | 0-45 |
 | Target tracking share | Share of the follow-through (target line turn rate minus your own turn rate). 0 = off. | 0.7 | 0-1 |
 | Target tracking maximum degrees per second | Cap for the follow-through. | 60 | 0-200 |
 | Tracking: do not count assist rotation as own | Do not count the rotation made by the assist itself as your own when comparing turn rates (so it can follow walking enemies at full speed). | on | on/off |
@@ -238,9 +241,12 @@ Sections: "1c Class Pistol", "1d Class SMG", "1e Class Assault Rifle and Carbine
 | Height within head box | Aim height inside the box (0 bottom, 0.5 middle, 1 top), scaled to the box's real height. | 0.72 | 0-1 |
 | Fall back to chest when head is covered | Aim at the chest when no head box is free (only without armor-based zone choice). | on | on/off |
 | Clear line of sight only | Skip enemies behind walls. | on | on/off |
-| Ignore shoot-through obstacles | Glass, mesh, grates, tall grass etc. do not count as obstacles (game's material/penetration data). | on | on/off |
-| Shoot-through from probability | Probability above which other materials count as passable for your loaded cartridge. | 0.5 | 0-1 |
+| Only visible targets (cover blocks even if penetrable) | Visibility is optical: any opaque obstacle hides an enemy even if your round would penetrate it. See-through: clear glass (not frosted), broken glass, chain-link fence, grates, open windows, low grass; foliage by depth. At least one of head, chest or pelvis must be visible. Also used by the AFK guard (fires only at visible enemies) and the ESP. Off = penetrable cover counts as clear. | on | on/off |
+| Ignore shoot-through obstacles | Glass, mesh, grates etc. do not count as obstacles (game's material/penetration data). Tall grass only when "Bushes and foliage block aim assist" is off. | on | on/off |
+| Shoot-through from probability | Only when "Only visible targets" is off. Probability above which other materials count as passable for your loaded cartridge. | 0.5 | 0-1 |
 | Check only layers bullets travel on | Check only physics layers bullets use for the line of sight. | on | on/off |
+| Bushes and foliage block aim assist | An enemy hidden behind or inside a bush, tree crown or tall grass counts as covered, although a bullet would pass. Uses the game's own foliage layer (the one bots use for their vision). Low grass never blocks. At least one of head, chest or pelvis must be clearly visible. | on | on/off |
+| Foliage depth that hides (m) | How much foliage the line to a body point may cross before it counts as covered. Bots stop seeing through foliage at 0.4-0.8 m. | 0.3 | 0-2 |
 | Target switch margin (pixels) | A different enemy must be better by this many pixels before the target switches. 0 = always the nearest. | 40 | 0-300 |
 
 ### 3 Exclusions (who to skip)
@@ -386,6 +392,7 @@ Both are **off by default**.
 - Grenade launchers are not supported.
 - **AFK guard limits:** it does not move, take cover, heal, throw grenades, switch weapons or fix weapon malfunctions (it stops firing and shows "weapon malfunction - fix it yourself"). It only sees bots that are in its range or that shot at you; an enemy sneaking up from behind beyond the range is only noticed once it shoots. A bot whose bullet passes close to you while shooting at someone else also counts as an attacker. Being hit by explosions or melee counts as a hit from that bot. It cannot help if your position is bad - pick a corner with few approaches.
 - Fences, foliage and other deviating materials can still deflect bullets even when counted as passable.
+- Frosted glass is recognised only by the name of its render material or shader ("frost", "milk", "matt", "opaque" ...); frosted panes with a neutral material name still count as clear glass.
 - The JSON field names inside the combat recordings are German (see `AUFZEICHNUNG-FORMAT.md` in the source); everything else is English.
 
 ## Building from source

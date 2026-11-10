@@ -165,6 +165,10 @@ namespace Zielhilfe
 
 		public static ConfigEntry<float> MagnetWeicht;
 
+		public static ConfigEntry<bool> SoftFreizone;
+
+		public static ConfigEntry<float> SoftFreizoneRand;
+
 		public static ConfigEntry<bool> KampfAufzeichnung;
 
 		public static ConfigEntry<int> AufzMaxMB;
@@ -344,12 +348,20 @@ namespace Zielhilfe
 
 		public static ConfigEntry<bool> NurSichtbare;
 
+		// Ab 1.4.7: Sicht rein optisch (Durchschuss.NurOptisch).
+		public static ConfigEntry<bool> NurOptisch;
+
 
 		public static ConfigEntry<bool> DurchschussIgnorieren;
 
 		public static ConfigEntry<float> DurchschussSchwelle;
 
 		public static ConfigEntry<bool> NurKugelEbenen;
+
+		// Ab 1.4.6: Buesche/Laub verdecken (Laub, unten).
+		public static ConfigEntry<bool> LaubVerdeckt;
+
+		public static ConfigEntry<float> LaubTiefe;
 
 		public static ConfigEntry<float> Wechselvorsprung;
 
@@ -692,6 +704,23 @@ namespace Zielhilfe
 					+ "Above 10 it gets sticky: already at 20 you can no longer get off the head "
 					+ "with a very slow mouse movement (5 degrees/s); from 10 degrees/s you always can.",
 					new AcceptableValueRange<float>(0f, 60f)), 35));
+			SoftFreizone = Eintrag.B(c, "1b Soft Aim (mouse)", "Free movement inside hit zone", defaultValue: true, Reihe(
+				"On = as long as the predicted impact (real shot line incl. lead and bullet drop) lies inside the "
+				+ "desired hit zone minus the inner margin, pull, friction and magnet do NOT act against your own "
+				+ "mouse movement - you can correct freely on the target. The magnet then holds the line at the "
+				+ "point YOU chose (it moves with your mouse) instead of the zone centre, so recoil and sway are "
+				+ "still caught. Towards the zone edge (inside the margin) the normal pull/friction/magnet fade "
+				+ "back in, outside the zone they act as before. Target tracking stays. Off = old behaviour "
+				+ "(magnet always pulls to the zone centre). Simulation 30 m, holding still with sustained fire: "
+				+ "head per shot 98 -> 96 %. Trade-off: hand tremor is also your own movement and is no longer "
+				+ "pulled back to the centre inside the free zone (bots 30 m, tremor 5 degrees/s: head per shot "
+				+ "25 -> 17 %; a larger inner margin brings it back: 30 % -> 18, 45 % -> 21).", 34));
+			SoftFreizoneRand = Eintrag.B(c, "1b Soft Aim (mouse)", "Free zone inner margin (%)", 15f, Reihe(new ConfigDescription(
+				"Safety margin of the free zone inside the hit zone, in percent of the zone width (at least 2 cm "
+				+ "at the target, at most 90 % of the half width). 15 = the outer 15 % of the zone width on each "
+				+ "side are not free: there the assist fades back in so the line does not slip off the edge. "
+				+ "Larger = smaller free core, safer; 0 = free up to the edge (still at least 2 cm).",
+				new AcceptableValueRange<float>(0f, 45f)), 33));
 			SoftMitAnteil = Eintrag.B(c, "1b Soft Aim (mouse)", "Target tracking share", 0.7f, Reihe(new ConfigDescription(
 					"Turns along with moving targets - but only the DIFFERENCE: share x (turn rate "
 					+ "of the line fire point-target point minus your own turn rate), both "
@@ -816,6 +845,17 @@ namespace Zielhilfe
 					+ "this concerned 6 of 1231 frames, so it is not a big lever - "
 					+ "but in exactly those frames the shot was certainly wasted."));
 			NurSichtbare = Eintrag.B(c, "2 Target", "Clear line of sight only", defaultValue: true, "On = enemies behind walls are skipped.");
+			NurOptisch = Eintrag.B(c, "2 Target", "Only visible targets (cover blocks even if penetrable)", defaultValue: true,
+				new ConfigDescription(
+					"On = visibility means what you can SEE, not where a bullet would get through. Every opaque "
+					+ "obstacle hides an enemy - tarps, fabric, cardboard, thin sheet metal, wooden boards, plastic, "
+					+ "car bodies - even if your round would penetrate it. Only really see-through things count as "
+					+ "clear: clear glass (not frosted/milky), broken glass, chain-link fence and grates (they have "
+					+ "gaps), open windows (nothing there), low grass; bushes, tree crowns and tall grass by depth "
+					+ "(\"Foliage depth that hides\"). At least one of head, chest or pelvis must be visible for the "
+					+ "assist to pull. Applies to aiming, zone choice, the AFK guard (it only fires at a visible "
+					+ "enemy) and the ESP visible/covered display. "
+					+ "Off = old behavior (penetrable cover counts as clear, \"Shoot-through from probability\")."));
 
 			DurchschussIgnorieren = Eintrag.B(c, "2 Target", "Ignore shoot-through obstacles", defaultValue: true,
 				"On = glass, chain-link fence, grates, tall grass and the like do "
@@ -828,7 +868,7 @@ namespace Zielhilfe
 
 			DurchschussSchwelle = Eintrag.B(c, "2 Target", "Shoot-through from probability", 0.5f,
 				new ConfigDescription(
-					"For everything that is not see-through anyway (wood, sheet metal, plastic ...): "
+					"Only used when \"Only visible targets\" is off. For everything that is not see-through anyway (wood, sheet metal, plastic ...): "
 					+ "from which probability it counts as permeable. Calculated as in the "
 					+ "game with your OWN loaded round: only if its penetration power "
 					+ "is above the material's level, then chance = obstacle chance of the "
@@ -843,6 +883,19 @@ namespace Zielhilfe
 					+ "In an open field such a cube stood 11 m in front of an enemy at "
 					+ "162 m and the aim assist did nothing at all. When enabled, only the layers the game "
 					+ "itself uses for projectiles are checked. Switching off restores the old behavior."));
+			LaubVerdeckt = Eintrag.B(c, "2 Target", "Bushes and foliage block aim assist", defaultValue: true,
+				new ConfigDescription(
+					"On = an enemy hidden behind or inside a bush, tree crown or tall grass counts as covered, "
+					+ "even though a bullet would pass through. Uses the same foliage layer the game's bots use "
+					+ "for their own vision (bush and tree trigger volumes), plus colliders made of the material "
+					+ "\"tall grass\". Low grass on the ground never blocks. At least one of head, chest or pelvis "
+					+ "must be clearly visible for the assist to act. Off = old behavior (foliage is ignored)."));
+			LaubTiefe = Eintrag.B(c, "2 Target", "Foliage depth that hides (m)", 0.3f,
+				new ConfigDescription(
+					"How much foliage the line to a body point may cross before it counts as covered "
+					+ "(length of the line inside bush/tree volumes). The game's bots stop seeing "
+					+ "through foliage at 0.4-0.8 m. Smaller = stricter.",
+					new AcceptableValueRange<float>(0f, 2f)));
 			Wechselvorsprung = Eintrag.B(c, "2 Target", "Target switch margin (pixels)", 40f, new ConfigDescription("The current target is kept as long as no other one is better by at least this many pixels. Prevents jumping between two enemies standing next to each other. 0 = always the nearest.", new AcceptableValueRange<float>(0f, 300f)));
 			ScavsAuslassen = Eintrag.B(c, "3 Exclusions", "Scavs", defaultValue: false, "");
 			PmcsAuslassen = Eintrag.B(c, "3 Exclusions", "PMCs", defaultValue: false, "");
@@ -1080,7 +1133,7 @@ namespace Zielhilfe
 			return Mathf.Lerp(_zeitBisMeter[num], _zeitBisMeter[num + 1], t);
 		}
 	}
-	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.3")]
+	[BepInPlugin("com.kaan.zielhilfe", "Zielhilfe (Aim Assist)", "1.4.7")]
 	public class MainPlugin : BaseUnityPlugin
 	{
 		private readonly Zielsuche _suche = new Zielsuche();
@@ -1251,7 +1304,7 @@ namespace Zielhilfe
 				if (flag)
 				{
 					_letzteDiagnose = Time.time;
-					base.Logger.LogInfo($"[Zielhilfe] key={Einstellungen.Taste.Value} pressed={flag2} " + $"me={ich != null} camera={Spielzugriff.Kameraquelle} " + $"alive={_suche.Gesamt} outFriend={_suche.RausFreund} outFaction={_suche.RausFraktion} " + $"outFar={_suche.RausEntfernung} outBehind={_suche.RausHinterKamera} " + $"outNoBone={_suche.RausKeinKnochen} " + $"outFov={_suche.RausBlickfeld} outSight={_suche.RausSicht} " + $"left={_suche.Uebrig} | nearest enemy {_suche.NaechsterAbstand:0} px " + $"= {_suche.NaechsterWinkel:0.00}° from center | camera field of view " + $"{((kamera != null) ? kamera.fieldOfView : 0f):0.0}° | limit " + ((Einstellungen.BlickfeldGrad.Value > 0f) ? $"{Einstellungen.BlickfeldGrad.Value:0.0}°" : $"{Einstellungen.Blickfeld.Value:0} px") + ((_suche.LetztesHindernis.Length > 0) ? (" | sight blocked by " + _suche.LetztesHindernis) : "") + " | aim point: " + ((Zielpunkt.LetzteWahl.Length > 0) ? Zielpunkt.LetzteWahl : Zielpunkt.LetzteQuelle) + ((Zielpunkt.LetzterVersatz > 0.001f) ? $" | lead shifts {Zielpunkt.LetzterVersatz * 100f:0} cm = {Zielpunkt.LetzterVersatzGrad:0.000}° [sideways {Zielpunkt.LetzterVersatzSeitlich * 100f:0} cm, up {Zielpunkt.LetzterVersatzHoch * 100f:0} cm]" : "") + ((Zielpunkt.ProbeText.Length > 0) ? (" | lead probe " + Zielpunkt.ProbeText) : "") + ((Zielpunkt.LetzterBildvorhalt > 0.001f) ? $" | frame delay {Zielpunkt.LetzterBildvorhalt * 100f:0} cm" : "") + ((Zielpunkt.LetzteBoxlage.Length > 0) ? (" | head boxes " + Zielpunkt.LetzteBoxlage) : "") + ((Zielpunkt.LetzteBoxhebung != 0f) ? $" | box lift {Zielpunkt.LetzteBoxhebung * 100f:0.0} cm" : "") + ((Zielpunkt.LetzterBoxfehler.Length > 0) ? (" | BOX ERROR " + Zielpunkt.LetzterBoxfehler) : "") + ((Zielpunkt.LetzteEntfernung > 0f) ? $" | {Zielpunkt.LetzteEntfernung:0} m, scope zeroed at {(Zielpunkt.LetzteEinschiessung < 0 ? $"{-Zielpunkt.LetzteEinschiessung} m (default!)" : $"{Zielpunkt.LetzteEinschiessung} m")}" : "") + ((Zielpunkt.LetzterFall != 0f) ? $" | drop compensation {Zielpunkt.LetzterFall * 100f:0} cm [drop {Zielpunkt.FallBeiZiel * 100f:0}/{Zielpunkt.FallBeiEinschuss * 100f:0} cm, zeroing acts {Zielpunkt.NullungWirkt * 100f:0}%, v0 {Zielpunkt.Muendungstempo:0} m/s]" : "") + $" | {1f / Mathf.Max(0.0001f, Time.smoothDeltaTime):0} fps ({Time.smoothDeltaTime * 1000f:0} ms/frame)" + $" | aim line turns {(maus ? SoftAim.ZielRate.x : _nachfuehrung.Gieren):0.0}°/s horizontal, " + $"{(maus ? SoftAim.ZielRate.y : _nachfuehrung.Nicken):0.0}°/s vertical" + (MausHatVorrang ? " | MOUSE HAS PRIORITY" : "") + $" | own rotation {EigeneDrehrate:0}°/s" + " | residual error " + $"{_letzterFehlerGieren:0.000}° / {_letzterFehlerNicken:0.000}°" + ((Rueckstoss.MuendungZumZiel >= 0f) ? $" | MUZZLE to target {Rueckstoss.MuendungZumZiel:0.000}° (horizontal {Rueckstoss.FehlerGieren:0.000}°, vertical {Rueckstoss.FehlerNicken:0.000}°)" : "") + Aufzeichnung.Diagnose() + (maus ? SoftAim.Diagnose() : ((Einstellungen.Art.Value == Zielmodus.LegacySoftAim) ? $" | SOFTAIM, cap {Einstellungen.SoftaimHoechstens.Value:0}°/s" : " | LOCK-ON")) + $" | readjustment {Rueckstoss.NachGieren:0.00}° / {Rueckstoss.NachNicken:0.00}°" + ((Zielpunkt.LetzteParallaxe > 0.001f) ? $" | origin fire point, {Zielpunkt.LetzteParallaxe * 100f:0} cm beside the camera" : " | origin camera") + $" | direction change {Zielpunkt.LetzterWechsel:0.00}" + $" | muzzle vs. camera {Rueckstoss.LetzterGieren:0.00}° / " + $"{Rueckstoss.LetzterNicken:0.00}°" + (Rueckstoss.ImAnschlag ? " (ADS)" : $" | HIP, not compensated: {Rueckstoss.HuefteGieren:0.00}° / {Rueckstoss.HuefteNicken:0.00}°"));
+					base.Logger.LogInfo($"[Zielhilfe] key={Einstellungen.Taste.Value} pressed={flag2} " + $"me={ich != null} camera={Spielzugriff.Kameraquelle} " + $"alive={_suche.Gesamt} outFriend={_suche.RausFreund} outFaction={_suche.RausFraktion} " + $"outFar={_suche.RausEntfernung} outBehind={_suche.RausHinterKamera} " + $"outNoBone={_suche.RausKeinKnochen} " + $"outFov={_suche.RausBlickfeld} outSight={_suche.RausSicht} " + $"left={_suche.Uebrig} | nearest enemy {_suche.NaechsterAbstand:0} px " + $"= {_suche.NaechsterWinkel:0.00}° from center | camera field of view " + $"{((kamera != null) ? kamera.fieldOfView : 0f):0.0}° | limit " + ((Einstellungen.BlickfeldGrad.Value > 0f) ? $"{Einstellungen.BlickfeldGrad.Value:0.0}°" : $"{Einstellungen.Blickfeld.Value:0} px") + Zielsuche.GrenzeText(_suche.NaechsterGrenze, _suche.NaechsterGrenzeEntf, _suche.NaechsterWinkel) + ((_suche.LetztesHindernis.Length > 0) ? (" | sight blocked by " + _suche.LetztesHindernis) : "") + " | aim point: " + ((Zielpunkt.LetzteWahl.Length > 0) ? Zielpunkt.LetzteWahl : Zielpunkt.LetzteQuelle) + ((Zielpunkt.LetzterVersatz > 0.001f) ? $" | lead shifts {Zielpunkt.LetzterVersatz * 100f:0} cm = {Zielpunkt.LetzterVersatzGrad:0.000}° [sideways {Zielpunkt.LetzterVersatzSeitlich * 100f:0} cm, up {Zielpunkt.LetzterVersatzHoch * 100f:0} cm]" : "") + ((Zielpunkt.ProbeText.Length > 0) ? (" | lead probe " + Zielpunkt.ProbeText) : "") + ((Zielpunkt.LetzterBildvorhalt > 0.001f) ? $" | frame delay {Zielpunkt.LetzterBildvorhalt * 100f:0} cm" : "") + ((Zielpunkt.LetzteBoxlage.Length > 0) ? (" | head boxes " + Zielpunkt.LetzteBoxlage) : "") + ((Zielpunkt.LetzteBoxhebung != 0f) ? $" | box lift {Zielpunkt.LetzteBoxhebung * 100f:0.0} cm" : "") + ((Zielpunkt.LetzterBoxfehler.Length > 0) ? (" | BOX ERROR " + Zielpunkt.LetzterBoxfehler) : "") + ((Zielpunkt.LetzteEntfernung > 0f) ? $" | {Zielpunkt.LetzteEntfernung:0} m, scope zeroed at {(Zielpunkt.LetzteEinschiessung < 0 ? $"{-Zielpunkt.LetzteEinschiessung} m (default!)" : $"{Zielpunkt.LetzteEinschiessung} m")}" : "") + ((Zielpunkt.LetzterFall != 0f) ? $" | drop compensation {Zielpunkt.LetzterFall * 100f:0} cm [drop {Zielpunkt.FallBeiZiel * 100f:0}/{Zielpunkt.FallBeiEinschuss * 100f:0} cm, zeroing acts {Zielpunkt.NullungWirkt * 100f:0}%, v0 {Zielpunkt.Muendungstempo:0} m/s]" : "") + $" | {1f / Mathf.Max(0.0001f, Time.smoothDeltaTime):0} fps ({Time.smoothDeltaTime * 1000f:0} ms/frame)" + $" | aim line turns {(maus ? SoftAim.ZielRate.x : _nachfuehrung.Gieren):0.0}°/s horizontal, " + $"{(maus ? SoftAim.ZielRate.y : _nachfuehrung.Nicken):0.0}°/s vertical" + (MausHatVorrang ? " | MOUSE HAS PRIORITY" : "") + $" | own rotation {EigeneDrehrate:0}°/s" + " | residual error " + $"{_letzterFehlerGieren:0.000}° / {_letzterFehlerNicken:0.000}°" + ((Rueckstoss.MuendungZumZiel >= 0f) ? $" | MUZZLE to target {Rueckstoss.MuendungZumZiel:0.000}° (horizontal {Rueckstoss.FehlerGieren:0.000}°, vertical {Rueckstoss.FehlerNicken:0.000}°)" : "") + Aufzeichnung.Diagnose() + (maus ? SoftAim.Diagnose() : ((Einstellungen.Art.Value == Zielmodus.LegacySoftAim) ? $" | SOFTAIM, cap {Einstellungen.SoftaimHoechstens.Value:0}°/s" : " | LOCK-ON")) + $" | readjustment {Rueckstoss.NachGieren:0.00}° / {Rueckstoss.NachNicken:0.00}°" + ((Zielpunkt.LetzteParallaxe > 0.001f) ? $" | origin fire point, {Zielpunkt.LetzteParallaxe * 100f:0} cm beside the camera" : " | origin camera") + $" | direction change {Zielpunkt.LetzterWechsel:0.00}" + $" | muzzle vs. camera {Rueckstoss.LetzterGieren:0.00}° / " + $"{Rueckstoss.LetzterNicken:0.00}°" + (Rueckstoss.ImAnschlag ? " (ADS)" : $" | HIP, not compensated: {Rueckstoss.HuefteGieren:0.00}° / {Rueckstoss.HuefteNicken:0.00}°"));
 				}
 				if (!flag2 || !flag3 || !maus)
 				{
@@ -1461,7 +1514,12 @@ namespace Zielhilfe
 				SoftAim.Vergessen();
 				return;
 			}
-			SoftAim.Merken(ziel, _zonen, anzahl, wunsch, entfernung, Zielpunkt.LetztesTempo);
+			// Mitdrehen bekommt das MOMENTANE Tempo des Ziels (ab 1.4.4) und den
+			// Vorhalt dieses Bildes (dessen Aenderung bewegt den Zielpunkt mit).
+			// Beides stammt aus dem MitVorhalt-Aufruf direkt davor (Update).
+			Vector3 tempoRoh = Zielpunkt.VorhaltTempoRoh;
+			tempoRoh.y = 0f;
+			SoftAim.Merken(ziel, _zonen, anzahl, wunsch, entfernung, tempoRoh, Zielpunkt.VorhaltVektor);
 		}
 
 		private void LateUpdate()
@@ -2452,6 +2510,111 @@ namespace Zielhilfe
 				MaterialType.GenericSoft
 			};
 
+		// Ab 1.4.7 (Meldung 09.11.: "Der Aim Assist soll nicht durch verdeckte
+		// Hindernisse schiessen"): was das AUGE durchlaesst. Nicht mehr dabei:
+		// Fabric, Cardboard, GarbagePaper, GenericSoft (Planen, Stoff, Kartons,
+		// Muell - undurchsichtig, auch wenn die Kugel durchgeht). GlassVisor sitzt
+		// nur an Helmen, also an einem Koerper - der verdeckt ohnehin.
+		// GrassHigh wertet SichtlinieRechnen nach Tiefe (Laub), GrassLow ist
+		// bodennahes Gras (verdeckt nie, wie im Laub-Modell von 1.4.6).
+		// Nicht im Strahl: die Ebene "TransparentCollider" - die Bots sehen durch
+		// sie hindurch (LookSensor-Maske HighPolyWithTerrainMaskAI = Terrain |
+		// HighPolyCollider | Grass | Foliage), das Spiel fuehrt sie also selbst
+		// als durchsichtig.
+		private static readonly HashSet<MaterialType> OptischDurchsichtig =
+			new HashSet<MaterialType>
+			{
+				MaterialType.Glass, MaterialType.GlassShattered,
+				MaterialType.Chainfence, MaterialType.Grate,
+				MaterialType.GrassHigh, MaterialType.GrassLow
+			};
+
+		/// <summary>Sicht rein optisch ("Only visible targets ...")?</summary>
+		public static bool NurOptisch => Einstellungen.NurOptisch != null && Einstellungen.NurOptisch.Value;
+
+		// Milchglas: dieselbe Materialart Glass, erkennbar nur am Namen des
+		// Render-Materials/Shaders. Je Kollider einmal ermittelt ("" = klar).
+		private static readonly Dictionary<Collider, string> _milchig = new Dictionary<Collider, string>(256);
+
+		private static readonly string[] MilchWoerter = { "frost", "milk", "matt", "opaque", "frozen", "privacy" };
+
+		private static string Milchig(Collider c, BallisticCollider b)
+		{
+			if (_milchig.TryGetValue(c, out string treffer))
+			{
+				return treffer;
+			}
+			if (_milchig.Count > 4096)
+			{
+				_milchig.Clear();
+			}
+			treffer = "";
+			try
+			{
+				// Nur Renderer am Kollider selbst oder die Scheibe des Fensters
+				// (WindowBreaker.Renderer) - nicht die des Elternobjekts, das waere
+				// oft der Rahmen.
+				treffer = MilchigIn(c.GetComponent<Renderer>());
+				if (treffer.Length == 0 && b != null && b.gameObject != c.gameObject)
+				{
+					treffer = MilchigIn(b.GetComponent<Renderer>());
+				}
+				if (treffer.Length == 0)
+				{
+					EFT.Interactive.WindowBreaker wb = c.GetComponentInParent<EFT.Interactive.WindowBreaker>();
+					if (wb != null)
+					{
+						treffer = MilchigIn(wb.Renderer);
+						if (treffer.Length == 0 && wb.Material != null)
+						{
+							treffer = MilchigName(wb.Material);
+						}
+					}
+				}
+			}
+			catch
+			{
+				treffer = "";
+			}
+			_milchig[c] = treffer;
+			return treffer;
+		}
+
+		private static string MilchigIn(Renderer r)
+		{
+			if (r == null)
+			{
+				return "";
+			}
+			Material[] mats = r.sharedMaterials;
+			for (int i = 0; i < mats.Length; i++)
+			{
+				string t = MilchigName(mats[i]);
+				if (t.Length > 0)
+				{
+					return t;
+				}
+			}
+			return "";
+		}
+
+		private static string MilchigName(Material m)
+		{
+			if (m == null)
+			{
+				return "";
+			}
+			string n = (m.name + " " + ((m.shader != null) ? m.shader.name : "")).ToLowerInvariant();
+			for (int i = 0; i < MilchWoerter.Length; i++)
+			{
+				if (n.Contains(MilchWoerter[i]))
+				{
+					return m.name;
+				}
+			}
+			return "";
+		}
+
 		/// <summary>
 		/// Wahr, wenn die Kugel durch dieses Hindernis geht.
 		///
@@ -2506,7 +2669,11 @@ namespace Zielhilfe
 		/// Ablenkung und mehrere Wandlagen (Auto, Muelltonne) rechnet die Regel nicht.
 		/// Fabric dagegen 77 % (22). Die normale Zielhilfe bleibt bei der Spielregel.
 		/// </param>
-		public static bool Durchlaessig(Collider c, out string grund, bool nurDurchsichtig = false)
+		/// <param name="optisch">
+		/// Ab 1.4.7: Sicht fuer das AUGE (OptischDurchsichtig, Milchglas verdeckt);
+		/// Durchschlag zaehlt dann nicht. Hat Vorrang vor nurDurchsichtig.
+		/// </param>
+		public static bool Durchlaessig(Collider c, out string grund, bool nurDurchsichtig = false, bool optisch = false)
 		{
 			grund = "";
 			if (c == null)
@@ -2540,6 +2707,25 @@ namespace Zielhilfe
 					return false;
 				}
 				MaterialType m = b.TypeOfMaterial;
+				if (optisch)
+				{
+					if (!OptischDurchsichtig.Contains(m))
+					{
+						grund = $"{m} opaque (hides even if penetrable)";
+						return false;
+					}
+					if (m == MaterialType.Glass)
+					{
+						string milch = Milchig(c, b);
+						if (milch.Length > 0)
+						{
+							grund = $"Glass frosted ({milch})";
+							return false;
+						}
+					}
+					grund = $"{m} see-through";
+					return true;
+				}
 				if (Durchsichtig.Contains(m))
 				{
 					grund = $"{m} see-through";
@@ -2584,6 +2770,184 @@ namespace Zielhilfe
 				grund = ex.GetType().Name;
 				return false;
 			}
+		}
+
+		/// <summary>Materialart des Kolliders (BallisticCollider), falls vorhanden.</summary>
+		public static bool Material(Collider c, out MaterialType m)
+		{
+			m = default(MaterialType);
+			try
+			{
+				BallisticCollider b = c.GetComponent<BallisticCollider>() ?? c.GetComponentInParent<BallisticCollider>();
+				if (b == null || b is BodyPartCollider)
+				{
+					return false;
+				}
+				m = b.TypeOfMaterial;
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Buesche und Laub als Sichthindernis (ab 1.4.6).
+	///
+	/// Meldung 09.11.: "Die Zielhilfe aimt auch durch Bueche, wo ich den Gegner
+	/// nicht sehen kann." Der Sichtstrahl lief nur ueber die Kugel-Ebenen
+	/// (Durchschuss.Ebenenmaske) und ignorierte Trigger - Buesche sind aber
+	/// TreeInteractive-Objekte mit TRIGGER-Kollidern auf der Ebene "Foliage"
+	/// (TreeInteractive: OnTriggerEnter/Stay -> AIData.StayInTree ->
+	/// FoliageIntersectionSystem "triggerCollider"). Doppelt unsichtbar.
+	///
+	/// Die Bots machen es so (Assembly-CSharp):
+	///  - LookSensor.Mask = LayersMaskController.HighPolyWithTerrainMaskAI
+	///    = Terrain | HighPolyCollider | Grass | Foliage,
+	///  - EnemyPartVision.DoCastAndCacheObstacles: Physics.Linecast mit dieser
+	///    Maske (Trigger zaehlen, queriesHitTriggers bleibt beim Unity-Standard),
+	///    Treffer auf Foliage -> ELookObstacleType.Tree, auf Grass -> Grass,
+	///  - ProcessVisionObstacles: Tree = Laenge der Strecke IN der Kugel
+	///    (SphereIntersectionLength), Grass pauschal 0,6 m; method_7 macht daraus
+	///    die Sicht: (1 - d/MAX_VISION_GRASS_METERS)/(1 + 1,5 d), ab
+	///    d >= MAX_VISION_GRASS_METERS (0,4-0,8 m in den Bot-Daten) sieht der Bot nichts.
+	/// Hier genauso: Strecke im Laub messen, ab "Foliage depth that hides" gilt
+	/// der Punkt als verdeckt. Grass-Ebene (bodennahes Gras) NICHT - bei den Bots
+	/// verdeckt sie nie ganz (0,6 m < 0,8 m), und Kaan soll nicht an jedem
+	/// Grasbueschel die Hilfe verlieren. Dazu Kugel-Kollider aus Material
+	/// GrassHigh (zaehlt fuer die Kugel als durchlaessig, fuer das Auge nicht).
+	/// </summary>
+	internal static class Laub
+	{
+		private static int _maske = -1;
+
+		private static readonly RaycastHit[] _treffer = new RaycastHit[32];
+
+		// Strecken [von, bis] auf dem Strahl, die im Laub liegen.
+		private static readonly float[] _von = new float[48];
+
+		private static readonly float[] _bis = new float[48];
+
+		private static int _anzahl;
+
+		public static bool An => Einstellungen.LaubVerdeckt != null && Einstellungen.LaubVerdeckt.Value;
+
+		public static int Maske()
+		{
+			if (_maske == -1)
+			{
+				int e = LayerMask.NameToLayer("Foliage");
+				_maske = (e >= 0) ? (1 << e) : 0;
+			}
+			return _maske;
+		}
+
+		public static void Beginnen()
+		{
+			_anzahl = 0;
+		}
+
+		/// <summary>
+		/// Strecke des Strahls IN diesem Kollider merken: Eintritt aus dem
+		/// Strahltreffer, Austritt per Rueckwaertsstrahl vom Zielpunkt aus
+		/// (trifft er nicht, liegt der Zielpunkt im Kollider - der Gegner steckt
+		/// im Busch). Beginnt der Strahl im Kollider (eigener Busch), meldet
+		/// Unity keinen Treffer: der eigene Busch verdeckt also nicht.
+		/// </summary>
+		public static void Merken(Collider c, float eintritt, Vector3 punkt, Vector3 richtung, float laenge)
+		{
+			if (_anzahl >= _von.Length)
+			{
+				return;
+			}
+			float austritt = laenge;
+			try
+			{
+				if (c.Raycast(new Ray(punkt, -richtung), out RaycastHit h, laenge))
+				{
+					austritt = laenge - h.distance;
+				}
+			}
+			catch
+			{
+			}
+			if (austritt <= eintritt)
+			{
+				return;
+			}
+			_von[_anzahl] = eintritt;
+			_bis[_anzahl] = austritt;
+			_anzahl++;
+		}
+
+		/// <summary>Laub-Kollider auf der Strecke dazunehmen (EIN Strahl, Trigger zaehlen).</summary>
+		public static void Strahl(Vector3 start, Vector3 richtung, float laenge, Vector3 punkt, Player ziel,
+								  HashSet<Collider> zielKollider, Transform zielWurzel, ref string name)
+		{
+			int maske = Maske();
+			if (maske == 0)
+			{
+				return;
+			}
+			int n = Physics.RaycastNonAlloc(start, richtung, _treffer, laenge, maske, QueryTriggerInteraction.Collide);
+			for (int i = 0; i < n; i++)
+			{
+				Collider c = _treffer[i].collider;
+				if (c == null || Zielpunkt.IstEigener(c) || (ziel != null && Zielpunkt.ZumZiel(c, zielKollider, zielWurzel)))
+				{
+					continue;
+				}
+				int vorher = _anzahl;
+				Merken(c, _treffer[i].distance, punkt, richtung, laenge);
+				if (_anzahl > vorher && name.Length == 0)
+				{
+					name = c.name;
+				}
+			}
+		}
+
+		/// <summary>Gesamtlaenge im Laub (ueberlappende Kugeln eines Busches nur einmal).</summary>
+		public static float Tiefe()
+		{
+			// Einfuegesortierung nach Eintritt - es sind nur wenige.
+			for (int i = 1; i < _anzahl; i++)
+			{
+				float v = _von[i], b = _bis[i];
+				int j = i - 1;
+				while (j >= 0 && _von[j] > v)
+				{
+					_von[j + 1] = _von[j];
+					_bis[j + 1] = _bis[j];
+					j--;
+				}
+				_von[j + 1] = v;
+				_bis[j + 1] = b;
+			}
+			float summe = 0f;
+			float a = 0f, e = -1f;
+			for (int i = 0; i < _anzahl; i++)
+			{
+				if (_von[i] > e)
+				{
+					if (e > a)
+					{
+						summe += e - a;
+					}
+					a = _von[i];
+					e = _bis[i];
+				}
+				else if (_bis[i] > e)
+				{
+					e = _bis[i];
+				}
+			}
+			if (e > a)
+			{
+				summe += e - a;
+			}
+			return summe;
 		}
 	}
 
@@ -2663,6 +3027,18 @@ namespace Zielhilfe
 				return Vector3.zero;
 			}
 			return p.Position;
+		}
+
+		public static Vector3 Becken(Player p)
+		{
+			PlayerBones playerBones = p?.PlayerBones;
+			// Wie die Zonenwahl (Pelvis.Original) - dann trifft die Ablage je Bild.
+			Transform pb = playerBones?.Pelvis?.Original;
+			if (pb != null)
+			{
+				return pb.position;
+			}
+			return (p != null) ? p.Position : Vector3.zero;
 		}
 
 		// Hebung ueber dem Kopfknochen fuer den Rueckfall ohne Kopfbox (frueher
@@ -2985,11 +3361,69 @@ namespace Zielhilfe
 		/// Freie Schussbahn von start bis GENAU zum Punkt? Uebersprungen werden nur
 		/// die eigenen Kollider und die des Ziels selbst (Koerperteile, Panzerplatten,
 		/// alles unter seinem Objekt - ZumZiel); jedes andere Hindernis zaehlt, ausser
-		/// die eigene Patrone schlaegt es nach Spielregel durch (Durchschuss.Durchlaessig).
+		/// es ist durchsichtig (ab 1.4.7 Standard, Durchschuss.NurOptisch) bzw. die
+		/// eigene Patrone schlaegt es nach Spielregel durch (Durchschuss.Durchlaessig).
 		/// Keine Toleranz am Ende: die Strahllaenge endet am Punkt.
 		/// </summary>
 		/// <param name="nurDurchsichtig">Siehe Durchschuss.Durchlaessig (AFK-Wache).</param>
+		// Ergebnis-Ablage je Bild (ab 1.4.6): dieselbe Strecke wird im selben Bild
+		// mehrfach geprueft (gehaltene Kopfbox, dann die Box-Schleife; Zielsuche,
+		// dann Zonenwahl) - jede weitere Abfrage kostet so keinen Strahl mehr.
+		private struct SichtErgebnis
+		{
+			public Vector3 Start, Punkt;
+			public int Ziel;
+			public bool NurDurchsichtig, Laub, Optisch, Frei;
+			public string Grund;
+			public Collider Hindernis;
+			public float Abstand;
+		}
+
+		private static readonly SichtErgebnis[] _sichtAblage = new SichtErgebnis[64];
+
+		private static int _sichtAblageBild = -1;
+
+		private static int _sichtAblageAnzahl;
+
 		public static bool Sichtlinie(Vector3 start, Vector3 punkt, Player ziel, out string grund, out Collider hindernis, out float abstand, bool nurDurchsichtig = false)
+		{
+			// Laub nur fuer die Zielhilfe selbst. Die AFK-Wache (nurDurchsichtig)
+			// prueft die Flugbahn der Kugel, und die geht durch einen Busch.
+			bool laub = !nurDurchsichtig && Laub.An;
+			// Ab 1.4.7: Sicht fuer das Auge - ebenfalls nur fuer die Zielhilfe; die
+			// Flugbahn-Pruefung der AFK-Wache bleibt bei der Kugel (sie prueft die
+			// Sicht zusaetzlich mit diesem Normalaufruf).
+			bool optisch = !nurDurchsichtig && Durchschuss.NurOptisch;
+			int zielId = (ziel != null) ? ziel.GetInstanceID() : 0;
+			if (_sichtAblageBild != Time.frameCount)
+			{
+				_sichtAblageBild = Time.frameCount;
+				_sichtAblageAnzahl = 0;
+			}
+			for (int k = 0; k < _sichtAblageAnzahl; k++)
+			{
+				ref SichtErgebnis s = ref _sichtAblage[k];
+				if (s.Ziel == zielId && s.NurDurchsichtig == nurDurchsichtig && s.Laub == laub && s.Optisch == optisch && s.Start == start && s.Punkt == punkt)
+				{
+					grund = s.Grund;
+					hindernis = s.Hindernis;
+					abstand = s.Abstand;
+					return s.Frei;
+				}
+			}
+			bool frei = SichtlinieRechnen(start, punkt, ziel, out grund, out hindernis, out abstand, nurDurchsichtig, laub, optisch);
+			if (_sichtAblageAnzahl < _sichtAblage.Length)
+			{
+				_sichtAblage[_sichtAblageAnzahl++] = new SichtErgebnis
+				{
+					Start = start, Punkt = punkt, Ziel = zielId, NurDurchsichtig = nurDurchsichtig, Laub = laub, Optisch = optisch,
+					Frei = frei, Grund = grund, Hindernis = hindernis, Abstand = abstand
+				};
+			}
+			return frei;
+		}
+
+		private static bool SichtlinieRechnen(Vector3 start, Vector3 punkt, Player ziel, out string grund, out Collider hindernis, out float abstand, bool nurDurchsichtig, bool laub, bool optisch)
 		{
 			grund = "clear";
 			hindernis = null;
@@ -3000,8 +3434,14 @@ namespace Zielhilfe
 			{
 				return true;
 			}
-			int anzahl = Physics.RaycastNonAlloc(start, weg / laenge, _sichtStrahl, laenge,
+			Vector3 richtung = weg / laenge;
+			int anzahl = Physics.RaycastNonAlloc(start, richtung, _sichtStrahl, laenge,
 												 Durchschuss.Ebenenmaske(), QueryTriggerInteraction.Ignore);
+			if (laub)
+			{
+				Laub.Beginnen();
+			}
+			string laubName = "";
 			HashSet<Collider> zielKollider = null;
 			Transform zielWurzel = null;
 			try
@@ -3026,8 +3466,20 @@ namespace Zielhilfe
 				{
 					continue;
 				}
-				if (Durchschuss.Durchlaessig(c, out var g, nurDurchsichtig))
+				if (Durchschuss.Durchlaessig(c, out var g, nurDurchsichtig, optisch))
 				{
+					// Hohes Gras/Gestruepp als Kugel-Kollider: die Kugel geht durch,
+					// das Auge nicht - wie Laub nach Tiefe werten.
+					if (laub && Durchschuss.Material(c, out var mat) && mat == MaterialType.GrassHigh)
+					{
+						int vorher = laubName.Length;
+						Laub.Merken(c, _sichtStrahl[i].distance, punkt, richtung, laenge);
+						if (vorher == 0)
+						{
+							laubName = c.name;
+						}
+						continue;
+					}
 					if (durch.Length == 0)
 					{
 						durch = g;
@@ -3046,6 +3498,22 @@ namespace Zielhilfe
 				abstand = naechstes;
 				grund = $"covered by {hindernis.name} [{blockGrund}] at {naechstes:0.0} m";
 				return false;
+			}
+			if (laub)
+			{
+				// Erst jetzt der Laub-Strahl: bei fester Deckung ist er unnoetig.
+				Laub.Strahl(start, richtung, laenge, punkt, ziel, zielKollider, zielWurzel, ref laubName);
+				float tiefe = Laub.Tiefe();
+				if (tiefe > 0f && tiefe >= Einstellungen.LaubTiefe.Value)
+				{
+					abstand = 0f;
+					grund = $"covered by {laubName} [foliage {tiefe:0.00} m]";
+					return false;
+				}
+				if (tiefe > 0f && durch.Length == 0)
+				{
+					durch = $"foliage {tiefe:0.00} m";
+				}
 			}
 			if (durch.Length > 0)
 			{
@@ -3665,9 +4133,31 @@ namespace Zielhilfe
 
 		public float NaechsterWinkel;
 
+		// Grenze, die fuer den naechsten Gegner WIRKLICH galt (Grad; -1 = Pixel-
+		// Grenze), und seine Entfernung (m) - im Meter-Modus haengt sie davon ab.
+		public float NaechsterGrenze = -1f;
+
+		public float NaechsterGrenzeEntf = -1f;
+
 		public string LetztesHindernis = "";
 
 		public Player Aktuell => _gehalten;
+
+		/// <summary>
+		/// Diagnose (ab 1.4.4): die Grenze, die fuer den naechsten Gegner galt.
+		/// "limit" davor ist nur die feste Gradangabe der alten Arten; bei Soft Aim
+		/// per Maus gilt je Gegner der Fangradius aus seiner Entfernung
+		/// (Einstellungen.RadiusGrad, im Meter-Modus z. B. 1 m -> 1,0 Grad auf 95 m).
+		/// </summary>
+		internal static string GrenzeText(float grenze, float entfernung, float winkel)
+		{
+			if (grenze <= 0f || winkel < 0f)
+			{
+				return "";
+			}
+			string drin = (winkel <= grenze) ? "inside" : "outside";
+			return FormattableString.Invariant($" (nearest enemy: limit {grenze:0.00}° at {entfernung:0} m = {entfernung * Mathf.Tan(grenze * 0.017453292f):0.00} m, {drin})");
+		}
 
 		/// <param name="position">Spitze des Suchkegels.</param>
 		/// <param name="forward">Achse des Suchkegels (normiert).</param>
@@ -3698,6 +4188,8 @@ namespace Zielhilfe
 			RausKeinKnochen = (RausBlickfeld = (RausSicht = (Uebrig = 0)));
 			NaechsterAbstand = -1f;
 			NaechsterWinkel = -1f;
+			NaechsterGrenze = -1f;
+			NaechsterGrenzeEntf = -1f;
 			Treffer treffer = default(Treffer);
 			treffer.Abstand = float.MaxValue;
 			Treffer treffer2 = default(Treffer);
@@ -3741,6 +4233,7 @@ namespace Zielhilfe
 				// Grenze JE GEGNER: bei Soft Aim per Maus der Fangradius aus seiner
 				// Entfernung (Einstellungen.RadiusGrad), sonst die feste Grenze.
 				float grenze = value;
+				float grenzeEntf = vector2.magnitude;
 				if (zonenRand)
 				{
 					grenze = Einstellungen.RadiusGrad(vector2.magnitude);
@@ -3748,6 +4241,7 @@ namespace Zielhilfe
 					{
 						num2 = rand;
 						grenze = Einstellungen.RadiusGrad(zonenEntfernung);
+						grenzeEntf = zonenEntfernung;
 					}
 				}
 				float num3 = num2 / num;
@@ -3755,6 +4249,8 @@ namespace Zielhilfe
 				{
 					NaechsterAbstand = num3;
 					NaechsterWinkel = num2;
+					NaechsterGrenze = (grenze > 0f) ? grenze : -1f;
+					NaechsterGrenzeEntf = grenzeEntf;
 				}
 				if ((grenze > 0f) ? (num2 > grenze) : (num3 > value2))
 				{
@@ -3769,9 +4265,12 @@ namespace Zielhilfe
 				// hinter Deckung, der Rumpf aber frei, ist der Gegner trotzdem
 				// bekaempfbar. Dank Kurzschluss-Auswertung kostet das im Normalfall
 				// weiterhin nur EINEN Strahl je Gegner.
+				// Ab 1.4.6 dazu das Becken: Kopf, Brust, Becken - mindestens einer
+				// muss frei zu sehen sein (Buesche verdecken jetzt, siehe Laub).
 				if (Einstellungen.NurSichtbare.Value
 					&& !Sichtbar(position, vector, item)
-					&& !Sichtbar(position, Zielpunkt.Koerper(item), item))
+					&& !Sichtbar(position, Zielpunkt.Koerper(item), item)
+					&& !Sichtbar(position, Zielpunkt.Becken(item), item))
 				{
 					if (item != _gehalten)
 					{
@@ -4991,7 +5490,7 @@ namespace Zielhilfe
 
 		private static float _entfernung;
 
-		// Mitdrehen: Zieltempo (geglaettet, aus dem Vorhalt), Feuerpunkt, geglaettete
+		// Mitdrehen: Zieltempo (momentan, plus Aenderung des Vorhalts; ab 1.4.4), Feuerpunkt, geglaettete
 		// Drehraten (Grad/s, Drehraum von Player.Rotation: x quer, y hoch).
 		private const float MitRuhe = 0.08f;
 
@@ -5018,6 +5517,46 @@ namespace Zielhilfe
 		public static Vector2 ZielRate;
 
 		public static Vector2 MitGrad;
+
+		// Vorhalt des letzten Bildes, fuer dessen Aenderung je Sekunde (ab 1.4.4).
+		private static Vector3 _vhLetzt;
+
+		private static float _vhZeit;
+
+		private static int _vhBild = -99;
+
+		private static bool _vhHat;
+
+		private static Vector3 _vhRate;
+
+		// Obergrenze der Vorhalt-Aenderung (m/s). Laeufer erreichen ~7 m/s; mehr
+		// ist kein Laufen mehr, sondern ein Sprung der Rechnung.
+		private const float VorhaltAenderungMax = 10f;
+
+		/// <summary>
+		/// Wie schnell sich der Vorhalt aendert (m/s, Welt). 0, wenn einer der
+		/// beiden Vorhalte 0 ist (Vorhalt geht an oder aus: ein Sprung, kein
+		/// Bewegen - Spruenge holt der Magnet), bei zu grossem oder fehlendem
+		/// Zeitabstand, und hoechstens VorhaltAenderungMax.
+		/// </summary>
+		internal static Vector3 Vorhaltaenderung(Vector3 vorher, float tVorher, Vector3 jetzt, float tJetzt)
+		{
+			if (vorher.sqrMagnitude < 1E-06f || jetzt.sqrMagnitude < 1E-06f)
+			{
+				return Vector3.zero;
+			}
+			float dt = tJetzt - tVorher;
+			if (dt <= 1E-04f || dt > 0.2f)
+			{
+				return Vector3.zero;
+			}
+			Vector3 r = (jetzt - vorher) / dt;
+			if (r.sqrMagnitude > VorhaltAenderungMax * VorhaltAenderungMax)
+			{
+				r = r.normalized * VorhaltAenderungMax;
+			}
+			return r;
+		}
 
 		/// <summary>Vergroesserung des aktiven Glases in diesem Bild (1 ohne Optik/Anschlag).</summary>
 		public static float Zoom = 1f;
@@ -5081,6 +5620,22 @@ namespace Zielhilfe
 
 		public static float MagnetGrad;
 
+		// Freizone (ab 1.4.5): Anteil 0..1 der Linie (1 = tief genug in der
+		// Wunschzone), Anteil der Bilder in der Freizone (gleitend, 5 s) und der
+		// Haltepunkt (Versatz Linie - Zielpunkt der Wunschzone, Bildebene in Grad),
+		// den der Magnet in der Freizone statt der Zonenmitte haelt.
+		public static float Frei;
+
+		private static float _freiQuote;
+
+		private static bool _freiQuoteHat;
+
+		private static bool _ankerHat;
+
+		private static Vector2 _anker;
+
+		private static int _ankerZone = -1;
+
 		public static Vector2 RohGrad;
 
 		public static Vector2 KorrGrad;
@@ -5133,7 +5688,7 @@ namespace Zielhilfe
 		/// Trefferzonen des gewaehlten Gegners hinterlegen. wunsch = Index der
 		/// Zone der Koerperstelle oder -1.
 		/// </summary>
-		public static void Merken(Player ziel, Zone[] zonen, int anzahl, int wunsch, float entfernung, Vector3 zielTempo)
+		public static void Merken(Player ziel, Zone[] zonen, int anzahl, int wunsch, float entfernung, Vector3 zielTempo, Vector3 vorhalt)
 		{
 			if ((object)ziel != _mitZiel)
 			{
@@ -5142,12 +5697,38 @@ namespace Zielhilfe
 				_mitZiel = ziel;
 				_mitHat = false;
 				_zielRateG = Vector2.zero;
+				_vhHat = false;
 				// Zielwechsel: der naechste Eintritt in den Fangbereich loest den
 				// Einfang-Schub aus, der Loese-Weg beginnt bei 0.
 				SchubLoesenZuruecksetzen();
 				_ruheHat = false;
+				_ankerHat = false;
 			}
-			_zielTempo = zielTempo;
+			// MITDREHEN FOLGT DEM ZIELPUNKT, NICHT EINEM ALTEN TEMPO (ab 1.4.4).
+			// Bis 1.4.3 kam hier das Vorhalt-Tempo an (0,12-0,15 s geglaettet) und
+			// wurde unten noch einmal 0,08 s geglaettet - zusammen ~0,23 s alt.
+			// Raid 08.11. (Lighthouse, Gegner sprintet quer auf 89-95 m, Zoom 6):
+			// der Gegner bremste und drehte, das Mitdrehen drehte noch 0,3 s mit
+			// +2,4 bis +0,7 Grad/s in die alte Richtung, der Magnet zog mit -2,6
+			// Grad/s dagegen, die Linie lag 0,15-0,19 Grad (25-30 cm) vor dem
+			// Zielpunkt -> Schuss 34 43 cm daneben. Ausserdem fehlte, dass sich der
+			// Zielpunkt auch durch den VORHALT bewegt (Vorhalt waechst beim
+			// Anlaufen, schrumpft beim Bremsen/Richtungswechsel).
+			// Jetzt: momentanes Tempo + Aenderung des Vorhalts je Sekunde; die
+			// Glaettung (MitRuhe) bleibt einmal. Nachgerechnet an allen
+			// Aufzeichnungen des Tages: Abstand Linie-Zielpunkt im Mittel (RMS)
+			// 10,1 -> 9,0 cm, Bilder ueber 10 cm 15 -> 8 %; Lighthouse 9,9 -> 6,8 cm.
+			float jetzt = Time.time;
+			int bildJetzt = Time.frameCount;
+			if (bildJetzt != _vhBild)
+			{
+				_vhRate = _vhHat ? Vorhaltaenderung(_vhLetzt, _vhZeit, vorhalt, jetzt) : Vector3.zero;
+				_vhLetzt = vorhalt;
+				_vhZeit = jetzt;
+				_vhBild = bildJetzt;
+				_vhHat = true;
+			}
+			_zielTempo = zielTempo + _vhRate;
 			_ziel = ziel;
 			_anzahl = Mathf.Min(anzahl, _zonen.Length);
 			for (int i = 0; i < _anzahl; i++)
@@ -5298,7 +5879,7 @@ namespace Zielhilfe
 		/// <summary>
 		/// Drehrate der Linie Feuerpunkt -> Zielpunkt (Grad/s, Drehraum: x =
 		/// Gieren, y = Nicken positiv nach unten). Gerechnet aus der RELATIVEN
-		/// Geschwindigkeit (Zieltempo aus dem Vorhalt minus eigenes Tempo):
+		/// Geschwindigkeit (Zieltempo samt Vorhalt-Aenderung, s. Merken, minus eigenes Tempo):
 		///   Gieren' = (rz vx - rx vz) / (rx^2 + rz^2)
 		///   Nicken' = -(vy |r|^2 - ry (r.v)) / (|r|^2 h),  h = sqrt(rx^2 + rz^2)
 		/// Das ist genau die Richtungsaenderung durch Bewegung - Spruenge des
@@ -5651,6 +6232,7 @@ namespace Zielhilfe
 		{
 			Gewicht = 0f;
 			MagnetGrad = 0f;
+			Frei = 0f;
 			RohGrad = Vector2.zero;
 			KorrGrad = Vector2.zero;
 			_diagBild = Time.frameCount;
@@ -5659,6 +6241,7 @@ namespace Zielhilfe
 			Vector2 anzW = Vector2.zero, reibW = Vector2.zero;
 			if (!LageBestimmen(ich, out var cos, out var kleinste))
 			{
+				_ankerHat = false;
 				return false;
 			}
 			// Eingabe -> Grad: genau die Umrechnung aus MovementState.ClampRotation
@@ -5750,6 +6333,11 @@ namespace Zielhilfe
 						}
 					}
 					profR *= 1f - profW;
+					// Freizone: tief in der Wunschzone wirken Anziehung und Reibung
+					// nicht, zum Rand (Sicherheitsrand) blenden sie wieder ein.
+					float fr = 1f - FreiAnteil(p);
+					profW *= fr;
+					profR *= fr;
 
 					Vector2 st = dRicht * l;
 					// Reibung: Anteil quer oder weg von der fuehrenden Zone bremsen,
@@ -5758,7 +6346,7 @@ namespace Zielhilfe
 					{
 						bool wFuehrt = profW >= profR;
 						Vector2 e = wFuehrt ? eW : eR;
-						float f = reibungMax * (wFuehrt ? innenW : innenR);
+						float f = reibungMax * (wFuehrt ? innenW : innenR) * fr;
 						Vector2 hin = e * Mathf.Max(0f, Vector2.Dot(st, e));
 						Vector2 vorReib = st;
 						st = hin + (st - hin) * (1f - f);
@@ -5905,6 +6493,18 @@ namespace Zielhilfe
 			// unabhaengig von der Bildrate.
 			// Wer vom Ziel wegzieht, schwaecht ihn ab: Gewicht 1 - (1 - g) x
 			// min(1, Mausgeschwindigkeit / Deckel), g = min(1, 1 + cos phi).
+			// --- Freizone: Haltepunkt nachfuehren -------------------------------
+			// Liegt der vorhergesagte Einschlag tief genug in der Wunschzone, haelt
+			// der Magnet die Linie an dem Punkt, an den der Spieler sie gelegt hat:
+			// der Haltepunkt wandert mit der EIGENEN Mausbewegung (dW, ohne Hilfe
+			// und ohne RCS) und bleibt in der Freizone. Rueckstoss und Schwanken
+			// stecken nicht in dW - die holt der Magnet weiter zurueck, aber auf den
+			// Haltepunkt statt auf die Zonenmitte. Kaan 08.11.: "versucht selbst
+			// nachzujustieren, wurde zurueckgezogen". Simulation 30 m, stille Maus,
+			// Dauerfeuer: Kopf 98 % ohne Freizone, 92 % mit Freizone ohne Haltepunkt,
+			// 96 % mit Haltepunkt.
+			bool ankerWirkt = FreizoneSchritt(dW, dt);
+
 			Vector2 magnet = Vector2.zero;
 			if (magnetMax > 0f)
 			{
@@ -5916,6 +6516,10 @@ namespace Zielhilfe
 				if (_wunsch >= 0 && _wunsch < _anzahl)
 				{
 					Profil(_wunsch, Vector2.zero, out eW, out winkelW, out innenW, out _);
+				}
+				if (ankerWirkt)
+				{
+					HaltZiel(out eW, out winkelW);
 				}
 				float innenR = 0f, winkelR = 0f, randR = float.MaxValue;
 				Vector2 eR = Vector2.zero;
@@ -6043,6 +6647,123 @@ namespace Zielhilfe
 		}
 
 		/// <summary>
+		/// Freizone: 1, wenn der Punkt p (Bildebene, relativ zur Schusslinie) um
+		/// mindestens den Sicherheitsrand tief in einem Trefferkollider der
+		/// Wunschzone liegt; zum Rand weich (smoothstep) auf 0, ausserhalb 0.
+		/// Tiefe je Kollider = (1 - q) x kleinste Halbachse: der Punkt liegt auf
+		/// der um q verkleinerten Ellipse, deren Abstand zum Rand mindestens
+		/// (1 - q) x kleinste Halbachse ist. Rand = Anteil der Zonenbreite
+		/// (2 x groesste der kleinsten Halbachsen), mindestens 2 cm am Ziel,
+		/// hoechstens 90 % der halben Breite.
+		/// </summary>
+		internal static float FreiAnteil(Vector2 p)
+		{
+			if (!Einstellungen.SoftFreizone.Value || _wunsch < 0 || _wunsch >= _anzahl || _nf[_wunsch] == 0)
+			{
+				return 0f;
+			}
+			Flaeche[] fl = _f[_wunsch];
+			float halbMax = 0f, tiefe = 0f;
+			for (int j = 0; j < _nf[_wunsch]; j++)
+			{
+				halbMax = Mathf.Max(halbMax, fl[j].Halb);
+				Trefferzonen.RandFlaeche(ref fl[j], p, out var q);
+				if (q < 1f)
+				{
+					tiefe = Mathf.Max(tiefe, (1f - q) * fl[j].Halb);
+				}
+			}
+			if (tiefe <= 0f)
+			{
+				return 0f;
+			}
+			float zweiCm = Mathf.Atan2(0.02f, Mathf.Max(0.5f, _e[_wunsch])) * 57.29578f;
+			float rand = Mathf.Max(2f * halbMax * Mathf.Clamp(Einstellungen.SoftFreizoneRand.Value, 0f, 45f) / 100f, zweiCm);
+			rand = Mathf.Min(rand, 0.9f * halbMax);
+			if (rand <= 1E-06f)
+			{
+				return 1f;
+			}
+			float u = Mathf.Clamp01(tiefe / rand);
+			return u * u * (3f - 2f * u);
+		}
+
+		/// <summary>
+		/// Freizone je Bild: Frei an der Linie bestimmen, den Haltepunkt mit der
+		/// eigenen Mausbewegung dW (Bildebene, Grad) nachfuehren und in der
+		/// Freizone halten, Anteil der Bilder mitzaehlen. Wahr = der Magnet haelt
+		/// auf den Haltepunkt (HaltZiel) statt auf den Zielpunkt.
+		/// </summary>
+		internal static bool FreizoneSchritt(Vector2 dW, float dt)
+		{
+			Frei = FreiAnteil(Vector2.zero);
+			bool wirkt = false;
+			if (Frei > 0f && _wunsch >= 0 && _wunsch < _anzahl)
+			{
+				if (!_ankerHat || _ankerZone != _wunsch)
+				{
+					_anker = -_a[_wunsch];
+					_ankerHat = true;
+					_ankerZone = _wunsch;
+				}
+				_anker += dW;
+				AnkerBegrenzen();
+				wirkt = true;
+			}
+			else
+			{
+				_ankerHat = false;
+			}
+			if (Einstellungen.SoftFreizone.Value && dt > 0f)
+			{
+				float tq = 1f - Mathf.Exp((0f - dt) / 5f);
+				float drin = (Frei >= 0.999f) ? 1f : 0f;
+				_freiQuote = _freiQuoteHat ? (_freiQuote + (drin - _freiQuote) * tq) : drin;
+				_freiQuoteHat = true;
+			}
+			return wirkt;
+		}
+
+		/// <summary>
+		/// Richtung und Winkel, auf die der Magnet in der Freizone zieht: der
+		/// Haltepunkt, zum Rand der Freizone weich zurueck auf den Zielpunkt
+		/// (Frei -> 0 am Zonenrand, kein Sprung).
+		/// </summary>
+		internal static void HaltZiel(out Vector2 e, out float winkel)
+		{
+			Vector2 zuHalt = _a[_wunsch] + _anker * Frei;
+			winkel = zuHalt.magnitude;
+			e = (winkel > 1E-06f) ? (zuHalt / winkel) : Vector2.zero;
+		}
+
+		/// <summary>
+		/// Haltepunkt in der Freizone halten: liegt er ausserhalb, wird er zum
+		/// Zielpunkt hin verkuerzt, bis er wieder ganz frei liegt (Halbierung).
+		/// </summary>
+		private static void AnkerBegrenzen()
+		{
+			Vector2 ziel = _a[_wunsch];
+			if (FreiAnteil(ziel + _anker) >= 0.999f)
+			{
+				return;
+			}
+			float lo = 0f, hi = 1f;
+			for (int k = 0; k < 8; k++)
+			{
+				float m = 0.5f * (lo + hi);
+				if (FreiAnteil(ziel + _anker * m) >= 0.999f)
+				{
+					lo = m;
+				}
+				else
+				{
+					hi = m;
+				}
+			}
+			_anker *= lo;
+		}
+
+		/// <summary>
 		/// Magnet bei aktiver eigener Maus: Bewegt sich die Hand relativ zum Ziel
 		/// schneller als "Magnet weicht eigener Maus ab" (Bildschirm-Mass: Grad/s x
 		/// Zoom), wird der Anteil des Magnets GEGEN diese Bewegung herausgenommen;
@@ -6125,7 +6846,7 @@ namespace Zielhilfe
 				  + $", spread {Panzerung.Streuung:0.000}°, unrest {Unruhe:0.000}°";
 			return $"[Zielhilfe] SHOT t={Time.time:0.000} frame={Time.frameCount} | {Kopfzeile(ich)} | {zielText}"
 				+ $" | mouse raw {RohGrad.x:0.000}/{RohGrad.y:0.000}° -> corrected {KorrGrad.x:0.000}/{KorrGrad.y:0.000}° ({Time.frameCount - _diagBild} frame(s) ago)"
-				+ $" | magnet {MagnetGrad:0.0}°/s, weight {Gewicht:0.00}" + kamText
+				+ $" | magnet {MagnetGrad:0.0}°/s, weight {Gewicht:0.00}, free zone {Frei:0.00}" + kamText
 				+ (ImAnschlag(ich) ? " | ADS" : " | hip");
 		}
 
@@ -6143,6 +6864,9 @@ namespace Zielhilfe
 				+ ((RandWunsch >= 0f && _wunsch >= 0) ? $"(desired zone {_zonen[_wunsch].Name} {RandWunsch:0.000}°) " : "(desired zone missing) ")
 				+ $"in radius {(ImRadius ? "yes" : "no")} (radius {RadiusDiag:0.00}° = {RadiusMeterDiag:0.00} m from edge, {Einstellungen.SoftRadiusArt.Value}), "
 				+ $"angle to aim point {Winkel:0.000}°, weight {Gewicht:0.00}, magnet {MagnetGrad:0.0}°/s, "
+				+ (Einstellungen.SoftFreizone.Value
+					? $"free zone {Frei:0.00} ({_freiQuote * 100f:0} % of frames, 5 s){(_ankerHat ? $", hold point {_anker.magnitude:0.000}° from aim point" : "")}, "
+					: "free zone off, ")
 				+ $"mouse raw {RohGrad.x:0.000}/{RohGrad.y:0.000}° -> corrected {KorrGrad.x:0.000}/{KorrGrad.y:0.000}°";
 		}
 

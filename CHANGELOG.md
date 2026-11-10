@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.4.7 — 2026-11-09
+
+The aim assist no longer acts on enemies hidden behind cover a bullet could penetrate. Reported: "The aim assist should not shoot through hidden obstacles."
+
+- **Cause:** visibility was defined by the bullet. Materials a bullet passes (fabric, cardboard, paper, generic soft material) counted as "see-through", and with the game's penetration rule thin sheet metal, wooden boards and plastic counted as clear as well. The assist pulled to - and the AFK guard fired at - enemies behind tarps, tents, cardboard, thin metal and fences you could not see.
+- **New: "Only visible targets (cover blocks even if penetrable)"** (section "2 Target", default on). Visibility is now optical: every opaque obstacle hides. See-through are only clear glass (frosted glass, recognised by its render material name, hides), broken glass, chain-link fence and grates (they have gaps), open windows (nothing there), low grass, and - as in 1.4.6 - bushes, tree crowns and tall grass by depth. The game's "TransparentCollider" layer stays outside the check, because the game's bots see through it as well. At least one of head, chest or pelvis must be visible for the assist to pull.
+- **AFK guard:** fires only at a visible enemy. It now checks both: the aim point is visible (same optical rule as the aim assist, incl. foliage) and the bullet's flight path is clear (unchanged from 1.4.3). If not, it holds fire and shows "holding fire, target not visible"; the log says `AFK guard: holding fire at ... - not visible: covered by ...`.
+- **ESP:** the visible/covered display uses the same optical rule (head, chest or pelvis).
+- Off = old behavior (penetrable cover counts as clear, "Shoot-through from probability" applies).
+- Performance unchanged: same rays, results cached per frame; the frosted-glass check runs once per glass collider.
+
+## 1.4.6 — 2026-11-09
+
+Bushes and foliage now hide enemies from the aim assist. Reported: "The aim assist also pulls through bushes where I can't see the enemy."
+
+- **Cause:** the line-of-sight ray only checked the layers bullets travel on and ignored trigger colliders. Bushes and tree crowns are trigger volumes on the game's "Foliage" layer (the same ones that make the rustling sound), so the ray never saw them. Tall-grass colliders on the bullet layers were rated "see-through" because a bullet passes them.
+- **New: "Bushes and foliage block aim assist"** (default on). The check now also casts against the Foliage layer, exactly like the game's bots do for their own vision (`HighPolyWithTerrainMaskAI`, foliage counted by the length of the line inside the bush). Colliders made of tall-grass material count the same way. Low grass on the ground (Grass layer) never blocks - for bots it never fully blocks either.
+- **New: "Foliage depth that hides (m)"** (default 0.3): how much foliage the line to a body point may cross before it counts as covered. Your own bush (the one you stand in) never blocks.
+- **Head, chest or pelvis:** an enemy is a candidate if at least one of the three is clearly visible (pelvis is new). Zone choice already checks every zone on its own, so the assist only pulls to a zone you can actually see.
+- Performance: one extra ray per check, and only when no solid cover was found first. Results are cached per frame, so the same line checked twice in one frame (held head box, zone choice) costs no new ray.
+- Unchanged: the ESP's visible/covered display and the AFK guard (it checks the bullet's flight path, and a bullet goes through a bush).
+
+## 1.4.5 — 2026-11-08
+
+Soft Aim by mouse: **free zone inside the hit zone.** Reported: "I tried to correct myself, but got pulled back." The hold magnet always pulled the shot line to the centre of the zone, even when it already was on the head.
+
+- **New: "Free movement inside hit zone"** (default on). While the predicted impact (real shot line incl. lead and bullet drop) lies inside the desired hit zone minus a safety margin, pull, friction and magnet no longer act against your own mouse movement. Towards the zone edge they fade back in smoothly (no jerk), outside the zone they work as before. Target tracking stays (difference only, as before).
+- **Hold point instead of zone centre.** Inside the free zone the magnet holds the line at the point *you* put it: the hold point moves with your own mouse movement (not with the assist or recoil compensation) and stays inside the free zone. Recoil and sway are not part of your mouse movement, so the magnet still pulls them back - to your point, not to the centre.
+- **New: "Free zone inner margin (%)"** (default 15): margin in percent of the zone width, at least 2 cm at the target, at most 90 % of the half width.
+- Simulation (magnet 14 °/s, 0.05 s, head per shot off -> on): standing target 30 m, still mouse, sustained fire 98 -> 96 % (without hold point it would be 92 %); single shots 98 -> 94 %. Trade-off: hand tremor counts as own movement and is no longer centred inside the free zone - bots 30 m with 5 °/s tremor 25 -> 17 %, with 2 °/s 55 -> 42 %; 80 m unchanged (6 %). A larger margin gives part of it back (30 %: 18 / 47 %, 45 %: 21 / 49 %).
+- Diagnostics: the Soft Aim line shows `free zone <0..1> (<x> % of frames, 5 s), hold point <angle> from aim point`; shot lines show `free zone <0..1>`.
+- Tests: offline tests for the free zone share, own small movement without counter-pull (old: 0.40 °/s back to centre, new: 0), magnet at the edge/outside, and still mouse with recoil and sway.
+
+## 1.4.4 — 2026-11-08
+
+Soft Aim by mouse: target tracking follows the aim point instead of an old speed. Reported case (Lighthouse, AR with 6x scope, a bot sprinting across the view at 89-95 m): 8 shots, 4 hits; of the 4 misses 2 stopped in thick metal in front of the target and 2 flew past.
+
+- **Target tracking no longer keeps turning after the target brakes or turns.** It used the lead speed, which is already smoothed over 0.12-0.15 s, and smoothed it a second time (0.08 s): about 0.23 s old in total. When the bot braked and reversed, tracking kept turning 0.3 s in the old direction (+2.4 to +0.7 °/s) while the hold magnet pulled against it (-2.6 °/s); the line stayed 0.15-0.19° (25-30 cm) ahead of the aim point and the shot missed by 43 cm. It also ignored that the aim point moves when the lead itself grows or shrinks. Tracking now uses the target's current speed plus the rate of change of the lead (only one smoothing, jumps when the lead switches on/off are left to the magnet). Replayed on all recordings of the day: line-to-aim-point error (RMS) 10.1 -> 9.0 cm, frames more than 10 cm off 15 % -> 8 %; this fight 9.9 -> 6.8 cm, the missed shot's tracking error 25 -> 8 cm.
+- Checked and unchanged: the lead itself has no systematic error (head movement during the flight vs. ballistic lead, 31 shots at moving targets: mean -1.0 cm; the remaining scatter, about 1/3 of the lead, is the bot changing speed during the 0.1 s flight), bullet drop is right (vertical error at 89-95 m within ±9 cm).
+- Impact log/recording: a body hit that came after four other impacts (barricade, fragment, two chain-link fences, then the chest plate) was dropped and the shot was logged as a miss. The first body hit of the chain is now always kept.
+- Diagnostics: the line after `limit` now also shows the limit that really applied to the nearest enemy (in Meters mode it depends on the distance, e.g. `limit 1.00° at 95 m = 1.66 m, inside`).
+- Tests: offline tests for the lead change rate, the impact chain and the limit text.
+
 ## 1.4.3 — 2026-11-08
 
 AFK guard: stops shooting into cover. In the reported raid (Streets, M4A1 with 6x scope, M995) 86 of 121 guard shots hit an obstacle first and only 5 of those still hit the target; shots with a really clear path hit 24 of 35.

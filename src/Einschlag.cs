@@ -311,6 +311,34 @@ namespace Zielhilfe
 
 		// --- Kugel unterwegs ------------------------------------------------
 
+		/// <summary>
+		/// Platz fuer den n-ten Einschlag der Kette (ab 1.4.4). Die ersten MaxFolge
+		/// kommen der Reihe nach; danach nur noch der ERSTE Koerpertreffer, und zwar
+		/// auf den letzten Platz. Raid 08.11. Schuss 30: Barrikade, Splitter,
+		/// Maschendraht, Maschendraht, DANN die Brustplatte des Ziels - der Treffer
+		/// war der 5. Einschlag, fiel weg, und Protokoll und Aufzeichnung meldeten
+		/// "miss". -1 = nicht speichern.
+		/// </summary>
+		internal static int Platz(int n, bool koerper, string[] gespeicherteKoerper)
+		{
+			if (n < MaxFolge)
+			{
+				return n;
+			}
+			if (!koerper)
+			{
+				return -1;
+			}
+			for (int k = 0; k < MaxFolge; k++)
+			{
+				if (!string.IsNullOrEmpty(gespeicherteKoerper[k]))
+				{
+					return -1;
+				}
+			}
+			return MaxFolge - 1;
+		}
+
 		/// <summary>Aus dem Postfix auf Shot.HandleCollision: jeder Einschlag, auch Splitter und Koerper.</summary>
 		internal static void Kollision(EFT.Ballistics.Shot s)
 		{
@@ -325,11 +353,12 @@ namespace Zielhilfe
 			}
 			int i = a.Anzahl;
 			a.Anzahl++;
-			if (i >= MaxFolge)
+			BallisticCollider bc = s.HittedBallisticCollider;
+			i = Platz(i, bc is BodyPartCollider, a.Koerper);
+			if (i < 0)
 			{
 				return;
 			}
-			BallisticCollider bc = s.HittedBallisticCollider;
 			Collider kol = s.HitCollider;
 			a.Punkt[i] = s.HitPoint;
 			a.Kol[i] = (kol != null) ? kol.name : "?";

@@ -50,6 +50,10 @@
 //      Strassenbahn, an der der Pruefstrahl 0,7-1,4 m vorbeiging;
 //    - nur Durchsichtiges zaehlt als frei (Durchschuss.Durchlaessig mit
 //      nurDurchsichtig): Autos, Muelltonnen, Holzwaende nicht mehr;
+//    - ab 1.4.7 zusaetzlich: das Ziel muss fuer das AUGE sichtbar sein
+//      (Zielpunkt.Sichtlinie im Normalaufruf, Durchschuss.NurOptisch) - "Der
+//      Aim Assist soll nicht durch verdeckte Hindernisse schiessen". Plane,
+//      Stoff, Karton verdecken also auch, wenn die Kugel durchkaeme;
 //    - die Feuerfreigabe ist wirklich "Aim tolerance (cm)" am Ziel - die alte
 //      Untergrenze 0,05 Grad machte daraus auf 240 m 21 cm.
 //
@@ -616,11 +620,11 @@ namespace Zielhilfe
 			Vector3 soll = Zielpunkt.MitVorhalt(ich, _ziel, punkt);
 			float fall = Mathf.Max(0f, Zielpunkt.VorhaltFall);
 			Vector3 vorhalt = soll - punkt - Vector3.up * fall;
-			bool frei = BahnFrei(start, punkt + vorhalt, fall, _ziel, out string sperre);
+			bool frei = SichtbarUndBahnFrei(start, punkt, vorhalt, fall, _ziel, out string sperre);
 			if (!frei)
 			{
 				Vector3 rumpf = Zielpunkt.Koerper(_ziel);
-				if (BahnFrei(start, rumpf + vorhalt, fall, _ziel, out _))
+				if (SichtbarUndBahnFrei(start, rumpf, vorhalt, fall, _ziel, out _))
 				{
 					punkt = rumpf;
 					soll = rumpf + vorhalt + Vector3.up * fall;
@@ -640,10 +644,11 @@ namespace Zielhilfe
 				{
 					_naechsteSperrMeldung = Time.time + 2f;
 					SoftAim.Protokoll?.LogInfo($"[Zielhilfe] AFK guard: holding fire at {Name(_ziel)}"
-						+ $" ({Vector3.Distance(ich.Position, _ziel.Position):0} m) - flight path {sperre}");
+						+ $" ({Vector3.Distance(ich.Position, _ziel.Position):0} m) - {sperre}");
 				}
 				_warFrei = false;
-				Status($"{(IstAngreifer(_ziel) ? "attacker" : "enemy")} {Name(_ziel)} - holding fire, flight path blocked");
+				Status($"{(IstAngreifer(_ziel) ? "attacker" : "enemy")} {Name(_ziel)} - holding fire, "
+					+ (sperre.StartsWith("not visible") ? "target not visible" : "flight path blocked"));
 				if (!gehalten)
 				{
 					_ziel = null;
@@ -722,8 +727,10 @@ namespace Zielhilfe
 				}
 				// Nur Durchsichtiges zaehlt als frei (wie in Schritt) - ein Bot hinter
 				// einem Auto ist kein Kandidat. Vorhalt/Bogen prueft erst Schritt.
-				bool frei = Zielpunkt.Sichtlinie(start, Zielpunkt.Fuer(p), p, out _, out _, out _, true)
-					|| Zielpunkt.Sichtlinie(start, Zielpunkt.Koerper(p), p, out _, out _, out _, true);
+				// Ab 1.4.7 dazu: fuer das Auge sichtbar (Sichtbar).
+				Vector3 fuer = Zielpunkt.Fuer(p), koerper = Zielpunkt.Koerper(p);
+				bool frei = (Zielpunkt.Sichtlinie(start, fuer, p, out _, out _, out _, true) && Sichtbar(start, fuer, p, out _))
+					|| (Zielpunkt.Sichtlinie(start, koerper, p, out _, out _, out _, true) && Sichtbar(start, koerper, p, out _));
 				if (!frei && istZiel && _verlust.Verloren <= 0f)
 				{
 					// Die Schusslinie zum Ziel war im letzten Bild frei (Schritt prueft
@@ -752,6 +759,41 @@ namespace Zielhilfe
 			}
 			int wahl = AfkVorrang.Waehle(_kAngreifer, _kAbstand, _kFrei, _kandidaten.Count, aktuell, WechselAnteil, gehalten);
 			return wahl < 0 ? null : _kandidaten[wahl];
+		}
+
+		/// <summary>
+		/// Ab 1.4.7: Punkt fuer das Auge sichtbar? Normalaufruf von Sichtlinie =
+		/// dieselbe optische Regel wie Zielen/Zonenwahl (Laub, Milchglas, Plane
+		/// verdeckt). Mit "Only visible targets" aus immer wahr (altes Verhalten).
+		/// </summary>
+		private static bool Sichtbar(Vector3 start, Vector3 punkt, Player ziel, out string grund)
+		{
+			grund = "";
+			if (!Durchschuss.NurOptisch)
+			{
+				return true;
+			}
+			if (Zielpunkt.Sichtlinie(start, punkt, ziel, out grund, out _, out _))
+			{
+				return true;
+			}
+			grund = "not visible: " + grund;
+			return false;
+		}
+
+		/// <summary>Erst sichtbar (Auge), dann freie Flugbahn (Kugel) bis Punkt + Vorhalt.</summary>
+		private bool SichtbarUndBahnFrei(Vector3 start, Vector3 punkt, Vector3 vorhalt, float fall, Player ziel, out string grund)
+		{
+			if (!Sichtbar(start, punkt, ziel, out grund))
+			{
+				return false;
+			}
+			if (BahnFrei(start, punkt + vorhalt, fall, ziel, out grund))
+			{
+				return true;
+			}
+			grund = "flight path " + grund;
+			return false;
 		}
 
 		/// <summary>
